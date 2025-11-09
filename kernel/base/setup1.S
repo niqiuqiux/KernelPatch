@@ -224,31 +224,10 @@ map_prepare:
     // map_data.paging_init_backup = *(uint32_t *)(paging_init_pa);
     ldr w12, [x13]
 
-    mov w3, #0x201F
-    movk w3, #0xD503, lsl#16
-    orr w1, w3, #0x100
-    mov w2, #0xFFFFFD1F
-    and w0, w12, w2
-    // if ((map_data.paging_init_backup & 0xFFFFFD1F) == 0xD503211F)
-    cmp w0, w1
-    b.ne .backup
-    // map_data.paging_init_backup = NOP
-    mov w12, w3
-    // uint32_t *p = (uint32_t *)paging_init_pa + 1;
-    add x11, x13, #4
-.cmp_auti:
-    // while ((*p & 0xFFFFFD1F) != 0xD503211F) ++p;
-    ldr w0, [x11], #4
-    and w0, w0, w2
-    cmp w0, w1
-    b.ne .cmp_auti
-    // *p = NOP
-    stur w3, [x11, #-4]
-
-.backup:
     str w12, [x9, #map_paging_init_backup_offset]
     dsb ish
 
+    // Calculate _paging_init physical address
     // uint64_t replace_offset = (uint64_t)(_paging_init - _map_start) + map_offset;
     adrp x11, _paging_init
     add x11, x11, :lo12:_paging_init
@@ -257,13 +236,15 @@ map_prepare:
     sub x11, x11, x12
     add x11, x11, x14
 
-    // *(uint32_t *)paging_init_pa = B_REL(paging_init_offset, replace_offset);
-    // #define B_REL(src, dst) (0x14000000u | (((dst - src) & 0x0FFFFFFFu) >> 2u))
-    sub x15, x11, x15
-    ubfx w15, w15, #2, #26
-    mov w12, #0x14000000
-    orr w15, w15, w12
-    str w15, [x13]
+    // Generate B (branch) instruction to hook paging_init
+    // B_REL(src, dst) = 0x14000000 | (((dst - src) & 0x0FFFFFFF) >> 2)
+    // x15 = paging_init_offset (src)
+    // x11 = _paging_init_pa (dst)
+    sub x15, x11, x15              // offset = dst - src
+    ubfx w15, w15, #2, #26         // Extract 26-bit offset (right shift by 2)
+    mov w12, #0x14000000           // B instruction opcode
+    orr w15, w15, w12              // Combine: 0x14000000 | (offset >> 2)
+    str w15, [x13]                 // Write B _paging_init to paging_init[0]
 
     // relocate map
     // memcpy(preset.map_offset + kernel_pa, (uint64_t)_map_start, (int64_t)(_map_end - _map_start));

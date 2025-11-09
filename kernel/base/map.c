@@ -201,10 +201,16 @@ void __noinline _paging_init()
     if (data->map_symbol.memblock_mark_nomap_relo)
         ((memblock_mark_nomap_f)(data->map_symbol.memblock_mark_nomap_relo))(start_pa, all_size);
 
-    // paging_init
+    // Restore and call original paging_init
+    // paging_init_relo has been relocated to virtual address in mem_proc()
     uint64_t paging_init_va = data->paging_init_relo;
+    // Restore the original first instruction (PAC has nop)
+    // This overwrites the B _paging_init instruction we wrote in map_prepare()
     *(uint32_t *)(paging_init_va) = data->paging_init_backup;
+    // Flush instruction cache to ensure the restored instruction is visible
     flush_icache_all();
+    // Call the original paging_init function
+    // It will initialize page tables and set up memory mappings
     ((paging_init_f)(paging_init_va))();
     // can't write data below
 
