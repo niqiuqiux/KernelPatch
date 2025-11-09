@@ -77,7 +77,7 @@ jobs:
           mv syscallhook.kpm demo-syscallhook.kpm
 
       - name: Upload elf
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           path: |
             kernel/kpimg.elf-linux
