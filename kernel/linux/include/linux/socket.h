@@ -1,13 +1,13 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_SOCKET_H
 #define _LINUX_SOCKET_H
-
-#include <asm/socket.h> /* arch-dependent defines	*/
-#include <linux/sockios.h> /* the SIOCxxx I/O controls	*/
+#include <ktypes.h> /* pid_t			*/
+// #include <asm/socket.h> /* arch-dependent defines	*/
+// #include <linux/sockios.h> /* the SIOCxxx I/O controls	*/
 #include <linux/uio.h> /* iovec support		*/
-#include <linux/types.h> /* pid_t			*/
+
 #include <linux/compiler.h> /* __user			*/
-#include <uapi/linux/socket.h>
+// #include <uapi/linux/socket.h>
 
 struct file;
 struct pid;
@@ -29,14 +29,9 @@ typedef __kernel_sa_family_t sa_family_t;
  *	1003.1g requires sa_family_t and that sa_data is char.
  */
 
-struct sockaddr
-{
-    sa_family_t sa_family; /* address family, AF_xxx	*/
-    union
-    {
-        char sa_data_min[14]; /* Minimum 14 bytes of protocol address	*/
-        DECLARE_FLEX_ARRAY(char, sa_data);
-    };
+ struct sockaddr {
+	sa_family_t	sa_family;	/* address family, AF_xxx	*/
+	char		sa_data[14];	/* 14 bytes of protocol address	*/
 };
 
 struct linger
@@ -389,10 +384,10 @@ struct timespec64;
 struct __kernel_timespec;
 struct old_timespec32;
 
-struct scm_timestamping_internal
-{
-    struct timespec64 ts[3];
-};
+// struct scm_timestamping_internal
+// {
+//     struct timespec64 ts[3];
+// };
 
 extern void put_cmsg_scm_timestamping64(struct msghdr *msg, struct scm_timestamping_internal *tss);
 extern void put_cmsg_scm_timestamping(struct msghdr *msg, struct scm_timestamping_internal *tss);

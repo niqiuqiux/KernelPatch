@@ -5,6 +5,16 @@
 #include <stdarg.h>
 #include <ksyms.h>
 
+/* &a[0] degrades to a pointer: a different type from an array */
+#define __must_be_array(a)	BUILD_BUG_ON_ZERO(__same_type((a), &(a)[0]))
+
+/**
+ * ARRAY_SIZE - get the number of elements in array @arr
+ * @arr: array to be sized
+ */
+ #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]) + __must_be_array(arr))
+
+
 extern int kfunc_def(sprintf)(char *buf, const char *fmt, ...);
 extern int kfunc_def(vsprintf)(char *buf, const char *fmt, va_list args);
 extern int kfunc_def(snprintf)(char *buf, size_t size, const char *fmt, ...);

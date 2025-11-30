@@ -329,9 +329,9 @@ static __always_inline void assign_bit(long nr, volatile unsigned long *addr, bo
 static __always_inline void __assign_bit(long nr, volatile unsigned long *addr, bool value)
 {
     if (value)
-        __set_bit(nr, addr);
+        set_bit(nr, addr);
     else
-        __clear_bit(nr, addr);
+        clear_bit(nr, addr);
 }
 
 #define set_mask_bits(ptr, mask, bits)                         \

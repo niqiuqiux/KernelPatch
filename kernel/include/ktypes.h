@@ -164,6 +164,8 @@ typedef u32 __kernel_dev_t;
 typedef int __kernel_key_t;
 typedef int __kernel_mqd_t;
 
+typedef unsigned short __kernel_sa_family_t;
+
 typedef struct
 {
     uid_t val;
