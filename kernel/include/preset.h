@@ -355,7 +355,9 @@ typedef struct _setup_preset_t
 #define setup_superkey_offset (setup_header_backup_offset + HDR_BACKUP_SIZE)
 #define setup_root_superkey_offset (setup_superkey_offset + SUPER_KEY_LEN)
 #define setup_patch_config_offset (setup_root_superkey_offset + ROOT_SUPER_KEY_HASH_LEN + SETUP_PRESERVE_LEN)
-#define setup_end (setup_patch_config_offset + PATCH_CONFIG_LEN)
+#define setup_struct_offsets_offset (setup_patch_config_offset + PATCH_CONFIG_LEN)
+#define setup_additional_offset (setup_struct_offsets_offset + STRUCT_OFFSETS_LEN)
+#define setup_end (setup_additional_offset + ADDITIONAL_LEN)
 #endif
 
 #ifndef __ASSEMBLY__

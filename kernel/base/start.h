@@ -41,9 +41,8 @@ typedef struct
 #define start_superkey_offset (start_map_backup_offset + MAP_MAX_SIZE)
 #define start_root_superkey_offset (start_superkey_offset + SUPER_KEY_LEN)
 #define start_patch_config_offset (start_root_superkey_offset + ROOT_SUPER_KEY_HASH_LEN)
-#define start_patch_extra_offset_offset (start_patch_config_offset + PATCH_CONFIG_LEN)
-#define start_patch_extra_size_offset (start_patch_extra_offset_offset + 8)
-#define start_end (start_patch_extra_size_offset + 8)
+#define start_struct_offsets_offset (start_patch_config_offset + PATCH_CONFIG_LEN)
+#define start_end (start_struct_offsets_offset + STRUCT_OFFSETS_LEN)
 #endif
 
 #endif // _KP_START_H_

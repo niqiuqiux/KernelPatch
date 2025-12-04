@@ -115,6 +115,12 @@ start_prepare:
     mov x2, #PATCH_CONFIG_LEN
     bl memcpy8
 
+    // memcpy(&start_preset.struct_offsets, &setup_preset.struct_offsets, STRUCT_OFFSETS_LEN);
+    add x0, x11, #start_struct_offsets_offset
+    add x1, x10, #setup_struct_offsets_offset
+    mov x2, #STRUCT_OFFSETS_LEN
+    bl memcpy8
+
     // backup map area
     // memcpy(start_preset.map_backup, kernel_pa + setup_preset.map_offset, (uint64_t)_map_end - (uint64_t)_map_start)
     adrp x13, _map_end
