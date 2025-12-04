@@ -21,6 +21,9 @@ static char *root_superkey = 0;
 struct patch_config *patch_config = 0;
 KP_EXPORT_SYMBOL(patch_config);
 
+struct_offsets_t *struct_offsets_config = 0;
+KP_EXPORT_SYMBOL(struct_offsets_config);
+
 static const char bstr[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
 
 static uint64_t _rand_next = 1000000007;
@@ -141,6 +144,8 @@ void predata_init()
         uintptr_t *p = (uintptr_t *)addr;
         if (*p) *p += kernel_va;
     }
+
+    struct_offsets_config = &start_preset.struct_offsets;
 
     dsb(ish);
 }

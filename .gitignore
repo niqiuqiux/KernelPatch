@@ -10,3 +10,5 @@ script
 
 .cache
 kpms
+*.json
+doc

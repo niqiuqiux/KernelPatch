@@ -25,6 +25,7 @@ typedef struct
     uint8_t superkey[SUPER_KEY_LEN];
     uint8_t root_superkey[ROOT_SUPER_KEY_HASH_LEN];
     patch_config_t patch_config;
+    struct_offsets_t struct_offsets;
 } start_preset_t;
 #else
 #define start_header_offset 0

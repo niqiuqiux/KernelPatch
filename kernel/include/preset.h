@@ -36,6 +36,8 @@
 
 #define PATCH_EXTRA_ITEM_LEN (128)
 
+#define STRUCT_OFFSETS_LEN (512)
+
 #define VERSION(major, minor, patch) (((major) << 16) + ((minor) << 8) + (patch))
 
 #ifndef __ASSEMBLY__
@@ -197,6 +199,94 @@ _Static_assert(sizeof(patch_extra_item_t) == PATCH_EXTRA_ITEM_LEN, "sizeof patch
 
 #ifndef __ASSEMBLY__
 
+/* 结构体偏移量配置结构 - 从BTF提取的结构体成员偏移量 */
+typedef struct
+{
+    union
+    {
+        struct
+        {
+            /* task_struct偏移量 */
+            int32_t task_struct_pid_offset;
+            int32_t task_struct_tgid_offset;
+            int32_t task_struct_thread_pid_offset;
+            int32_t task_struct_ptracer_cred_offset;
+            int32_t task_struct_real_cred_offset;
+            int32_t task_struct_cred_offset;
+            int32_t task_struct_fs_offset;
+            int32_t task_struct_files_offset;
+            int32_t task_struct_loginuid_offset;
+            int32_t task_struct_sessionid_offset;
+            int32_t task_struct_comm_offset;
+            int32_t task_struct_seccomp_offset;
+            int32_t task_struct_security_offset;
+            int32_t task_struct_stack_offset;
+            int32_t task_struct_tasks_offset;
+            int32_t task_struct_mm_offset;
+            int32_t task_struct_active_mm_offset;
+            
+            /* cred偏移量 */
+            int32_t cred_usage_offset;
+            int32_t cred_subscribers_offset;
+            int32_t cred_magic_offset;
+            int32_t cred_uid_offset;
+            int32_t cred_gid_offset;
+            int32_t cred_suid_offset;
+            int32_t cred_sgid_offset;
+            int32_t cred_euid_offset;
+            int32_t cred_egid_offset;
+            int32_t cred_fsuid_offset;
+            int32_t cred_fsgid_offset;
+            int32_t cred_securebits_offset;
+            int32_t cred_cap_inheritable_offset;
+            int32_t cred_cap_permitted_offset;
+            int32_t cred_cap_effective_offset;
+            int32_t cred_cap_bset_offset;
+            int32_t cred_cap_ambient_offset;
+            int32_t cred_user_offset;
+            int32_t cred_user_ns_offset;
+            int32_t cred_ucounts_offset;
+            int32_t cred_group_info_offset;
+            int32_t cred_session_keyring_offset;
+            int32_t cred_process_keyring_offset;
+            int32_t cred_thread_keyring_offset;
+            int32_t cred_request_key_auth_offset;
+            int32_t cred_security_offset;
+            int32_t cred_rcu_offset;
+            
+            /* mm_struct偏移量 */
+            int32_t mm_struct_mmap_base_offset;
+            int32_t mm_struct_task_size_offset;
+            int32_t mm_struct_pgd_offset;
+            int32_t mm_struct_map_count_offset;
+            int32_t mm_struct_total_vm_offset;
+            int32_t mm_struct_locked_vm_offset;
+            int32_t mm_struct_pinned_vm_offset;
+            int32_t mm_struct_data_vm_offset;
+            int32_t mm_struct_exec_vm_offset;
+            int32_t mm_struct_stack_vm_offset;
+            int32_t mm_struct_start_code_offset;
+            int32_t mm_struct_end_code_offset;
+            int32_t mm_struct_start_data_offset;
+            int32_t mm_struct_end_data_offset;
+            int32_t mm_struct_start_brk_offset;
+            int32_t mm_struct_brk_offset;
+            int32_t mm_struct_start_stack_offset;
+            int32_t mm_struct_arg_start_offset;
+            int32_t mm_struct_arg_end_offset;
+            int32_t mm_struct_env_start_offset;
+            int32_t mm_struct_env_end_offset;
+            
+        };
+        char _cap[STRUCT_OFFSETS_LEN];
+    };
+} struct_offsets_t;
+_Static_assert(sizeof(struct_offsets_t) == STRUCT_OFFSETS_LEN, "sizeof struct_offsets_t mismatch");
+
+#endif
+
+#ifndef __ASSEMBLY__
+
 // TODO: remove
 typedef struct
 {
@@ -243,6 +333,7 @@ typedef struct _setup_preset_t
     uint8_t root_superkey[ROOT_SUPER_KEY_HASH_LEN];
     uint8_t __[SETUP_PRESERVE_LEN];
     patch_config_t patch_config;
+    struct_offsets_t struct_offsets;
     char additional[ADDITIONAL_LEN];
 } setup_preset_t;
 #else

@@ -1,6 +1,9 @@
 ifndef TARGET_COMPILE
     $(error TARGET_COMPILE not set)
 endif
+# export ANDROID=1
+
+# TARGET_COMPILE=/home/ni/x86_64-aarch64-none-elf/bin/aarch64-none-elf-
 
 TARGET=kpimg
 
@@ -12,13 +15,13 @@ OBJCOPY = $(TARGET_COMPILE)objcopy
 CFLAGS += -Wall -fno-builtin -std=gnu11 -nostdinc -mgeneral-regs-only
 CFLAGS += -g
 
-ifdef DEBUG
+# ifdef DEBUG
 	CFLAGS += -DDEBUG -DMAP_DEBUG -g
-endif
+# endif
 
-ifdef ANDROID
+# ifdef ANDROID
 	CFLAGS += -DANDROID
-endif
+# endif
 
 INCLUDE := -I. -Iinclude -Ipatch/include -Ilinux -Ilinux/include -Ilinux/arch/arm64/include -Ilinux/tools/arch/arm64/include
 

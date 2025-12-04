@@ -16,6 +16,7 @@
 #include <linux/slab.h>
 #include <module.h>
 #include <user_event.h>
+#include <common.h>
 
 static char *__user supercmd_str_to_user_sp(const char *data, uintptr_t *sp)
 {

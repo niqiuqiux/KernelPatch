@@ -2,8 +2,10 @@
 
 **Patching and hooking the Linux kernel with only stripped Linux kernel image.**
 
-``` shell
- _  __                    _ ____       _       _     
+*--实验性分支，利用内核a13之上的btf特性，修补kp解析结构体的痛点*
+
+```shell
+ _  __                    _ ____       _       _   
 | |/ /___ _ __ _ __   ___| |  _ \ __ _| |_ ___| |__  
 | ' // _ \ '__| '_ \ / _ \ | |_) / _` | __/ __| '_ \ 
 | . \  __/ |  | | | |  __/ |  __/ (_| | || (__| | | |
@@ -20,13 +22,15 @@ If you are using Android, [APatch](https://github.com/bmax121/APatch) would be a
 
 ## Requirement
 
-CONFIG_KALLSYMS=y  
+CONFIG_KALLSYMS=y
+
+CONFIG_DEBUG_INFO_BTF=y
 
 ## Supported Versions
 
-Currently only supports arm64 architecture.  
+Currently only supports arm64 architecture.
 
-Linux 3.18 - 6.6 (theoretically)  
+Linux 5.15(and 5.10-a13) - 6.12 (theoretically)
 
 ## Get Involved
 
@@ -42,4 +46,4 @@ Linux 3.18 - 6.6 (theoretically)
 
 ## License
 
-KernelPatch is licensed under the **GNU General Public License (GPL) 2.0** (<https://www.gnu.org/licenses/old-licenses/gpl-2.0.html>).
+KernelPatch is licensed under the **GNU General Public License (GPL) 2.0** ([https://www.gnu.org/licenses/old-licenses/gpl-2.0.html](https://www.gnu.org/licenses/old-licenses/gpl-2.0.html)).

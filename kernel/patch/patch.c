@@ -83,8 +83,10 @@ static void before_rest_init(hook_fargs4_t *args, void *udata)
     rc = su_compat_init();
     log_boot("su_compat_init done: %d\n", rc);
 
-    rc = resolve_pt_regs();
-    log_boot("resolve_pt_regs done: %d\n", rc);
+    //hook execve/execveat to resolve pt_regs offset
+    //but an13 510 not need to calculate pt_regs offset
+    // rc = resolve_pt_regs();
+    // log_boot("resolve_pt_regs done: %d\n", rc);
 
 #ifdef ANDROID
     rc = android_sepolicy_flags_fix();
@@ -146,7 +148,7 @@ int patch()
     }
     if (rc) return rc;
 
-    // kernel_init
+    // kernel_init for kpm
     unsigned long kernel_init_addr = patch_config->kernel_init;
     if (kernel_init_addr) {
         rc = hook_wrap4((void *)kernel_init_addr, before_kernel_init, after_kernel_init, 0);

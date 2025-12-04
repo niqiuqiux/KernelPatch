@@ -1,11 +1,11 @@
 
 CFLAGS = -std=c11 -Wall -Wextra -Wno-unused -Wno-unused-parameter
 LDFLAGS = -lz
-ifdef DEBUG
+# ifdef DEBUG
 	CFLAGS += -DDEBUG -g
-endif
+# endif
 
-objs := image.o kallsym.o kptools.o order.o insn.o patch.o symbol.o kpm.o common.o
+objs := image.o kallsym.o kptools.o order.o insn.o patch.o symbol.o kpm.o common.o btf.o
 objs += sha256.o
 
 .PHONY: all

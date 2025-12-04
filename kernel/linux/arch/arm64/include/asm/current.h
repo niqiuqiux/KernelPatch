@@ -11,12 +11,12 @@ struct task_struct;
 #define THREAD_SIZE 16384
 
 extern int thread_size;
-extern int thread_info_in_task;
-extern int sp_el0_is_current;
-extern int sp_el0_is_thread_info;
-extern int task_in_thread_info_offset;
+// extern int thread_info_in_task;
+// extern int sp_el0_is_current;
+// extern int sp_el0_is_thread_info;
+// extern int task_in_thread_info_offset;
 extern int stack_in_task_offset;
-extern int stack_end_offset;
+// extern int stack_end_offset;
 
 register uint64_t current_stack_pointer asm("sp");
 
@@ -39,21 +39,53 @@ static inline struct thread_info *current_thread_info_sp_el0()
 
 static inline struct thread_info *current_thread_info()
 {
-    if (thread_info_in_task || sp_el0_is_thread_info) return (struct thread_info *)current_sp_el0();
-    return current_thread_info_sp();
+    // if (thread_info_in_task || sp_el0_is_thread_info) return (struct thread_info *)current_sp_el0();
+    // return current_thread_info_sp();
+
+    //默认 task 第一个默认是 thread_info
+ return (struct thread_info *)current_sp_el0();
+
 }
 
 static inline struct task_struct *get_current()
 {
-    if (likely(sp_el0_is_current)) {
+    // if (likely(sp_el0_is_current)) {
         uint64_t sp_el0;
         asm volatile("mrs %0, sp_el0" : "=r"(sp_el0));
         return (struct task_struct *)sp_el0;
-    }
-    uint64_t addr = (uint64_t)current_thread_info() + task_in_thread_info_offset;
-    return *(struct task_struct **)addr;
+    // }
+    // uint64_t addr = (uint64_t)current_thread_info() + task_in_thread_info_offset;
+    // return *(struct task_struct **)addr;
 }
 #define current get_current()
+
+
+
+
+#ifdef CONFIG_THREAD_INFO_IN_TASK
+
+/*
+ * When accessing the stack of a non-current task that might exit, use
+ * try_get_task_stack() instead.  task_stack_page will return a pointer
+ * that could get freed out from under you.
+ */
+static __always_inline void *task_stack_page(const struct task_struct *task)
+{
+	return task->stack;
+}
+
+static __always_inline unsigned long *end_of_stack(const struct task_struct *task)
+{
+	return task->stack;
+}
+
+#define task_pt_regs(p) \
+	((struct pt_regs *)(THREAD_SIZE + task_stack_page(p)) - 1)
+
+#define task_stack_end_corrupted(task) \
+    (*(end_of_stack(task)) != STACK_END_MAGIC)
+#endif
+
 
 static inline unsigned long *get_stack(const struct task_struct *task)
 {
@@ -64,7 +96,7 @@ static inline unsigned long *get_stack(const struct task_struct *task)
 static inline unsigned long *end_of_stack(const struct task_struct *task)
 {
     unsigned long sp_end = (unsigned long)get_stack(task);
-    sp_end = sp_end + stack_end_offset;
+    //sp_end = sp_end + stack_end_offset;
     return (unsigned long *)sp_end;
 }
 
@@ -85,34 +117,38 @@ static inline struct task_ext *get_current_task_ext()
 
 static inline struct thread_info *get_task_thread_info(const struct task_struct *task)
 {
-    if (thread_info_in_task) return (struct thread_info *)task;
-    return (struct thread_info *)get_stack(task);
+    //if (thread_info_in_task)
+     return (struct thread_info *)task;
+   // return (struct thread_info *)get_stack(task);
 }
 
 #define current_ext get_current_task_ext()
 
+
+
+//todo 关于sp_el0的覆盖，需要加入tasklock保护 --> spin_lock(&p->alloc_lock);
 static inline const struct task_struct *override_current(struct task_struct *task)
 {
-    if (sp_el0_is_current) {
+    // if (sp_el0_is_current) {
         uint64_t sp_el0;
         asm volatile("mrs %0, sp_el0" : "=r"(sp_el0));
         asm volatile("msr sp_el0, %0" ::"r"(task));
         return (struct task_struct *)sp_el0;
-    }
-    uint64_t addr = (uint64_t)current_thread_info() + task_in_thread_info_offset;
-    struct task_struct *old = *(struct task_struct **)addr;
-    *(struct task_struct **)addr = (struct task_struct *)task;
-    return old;
+    // }
+    // uint64_t addr = (uint64_t)current_thread_info() + task_in_thread_info_offset;
+    // struct task_struct *old = *(struct task_struct **)addr;
+    // *(struct task_struct **)addr = (struct task_struct *)task;
+    // return old;
 }
 
 static inline void revert_current(const struct task_struct *old)
 {
-    if (sp_el0_is_current) {
+    // if (sp_el0_is_current) {
         asm volatile("msr sp_el0, %0" ::"r"(old));
         return;
-    }
-    uint64_t addr = (uint64_t)current_thread_info() + task_in_thread_info_offset;
-    *(struct task_struct **)addr = (struct task_struct *)old;
+    // }
+    // uint64_t addr = (uint64_t)current_thread_info() + task_in_thread_info_offset;
+    // *(struct task_struct **)addr = (struct task_struct *)old;
 }
 
 #endif

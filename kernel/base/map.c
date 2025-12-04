@@ -173,7 +173,7 @@ static uint64_t __noinline get_or_create_pte(map_data_t *data, uint64_t va, uint
 }
 
 // todo: bti
-void __noinline _paging_init()
+void __noinline _paging_init()//内核b 跳转到当前函数进行初始化
 {
     map_data_t *data = mem_proc();
 #ifdef MAP_DEBUG
@@ -255,4 +255,7 @@ void __noinline _paging_init()
 
     // start
     ((start_f)start_va)(data->kimage_voffset, data->linear_voffset);
+
+    //end of _paging_init 后续内核继续之后原始的初始化流程
+    return;
 }
