@@ -289,6 +289,12 @@ int32_t btf_get_var_info_by_name(const btf_t *btf, const char *var_name, btf_var
  int32_t btf_get_struct_members(const btf_t *btf, uint32_t struct_type_id, btf_member_info_t *members, int32_t max_members);
  int32_t btf_get_enum_values(const btf_t *btf, uint32_t enum_type_id, btf_enum_info_t *values, int32_t max_values);
  
+
+ /* 获取结构体最外层成员信息 */
+ int32_t btf_get_struct_outer_members(const btf_t *btf, uint32_t struct_type_id, char *name,btf_member_info_t *out);
+
+ int32_t btf_get_struct_1depth_members(const btf_t *btf, uint32_t struct_type_id, char *name, btf_member_info_t *out);
+
  /* 通过结构体 type_id + 成员名查找成员信息（offset/type_id 等） */
  int32_t btf_find_struct_member_by_type_id(const btf_t *btf,
                                            uint32_t struct_type_id,

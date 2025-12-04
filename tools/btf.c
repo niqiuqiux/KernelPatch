@@ -762,8 +762,8 @@ int32_t btf_find_by_name_kind(const btf_t *btf, const char *name, uint32_t kind)
  /* 获取结构体成员 */
  int32_t btf_get_struct_members(const btf_t *btf, uint32_t struct_type_id, btf_member_info_t *members, int32_t max_members)
  {
-     printf("[DEBUG] btf_get_struct_members: struct_type_id=%u\n", struct_type_id);
-     fflush(stdout);
+    //  printf("[DEBUG] btf_get_struct_members: struct_type_id=%u\n", struct_type_id);
+    //  fflush(stdout);
      
      if (!btf || !members || max_members <= 0) {
          printf("[ERROR] btf_get_struct_members: invalid parameters\n");
@@ -779,26 +779,26 @@ int32_t btf_find_by_name_kind(const btf_t *btf, const char *name, uint32_t kind)
      }
 
      uint32_t kind = btf_kind_with_endian(t, btf->is_be);
-     printf("[DEBUG] btf_get_struct_members: type_id=%u, kind=%u (STRUCT=%u, UNION=%u)\n", 
-            struct_type_id, kind, BTF_KIND_STRUCT, BTF_KIND_UNION);
-     fflush(stdout);
+    //  printf("[DEBUG] btf_get_struct_members: type_id=%u, kind=%u (STRUCT=%u, UNION=%u)\n", 
+    //         struct_type_id, kind, BTF_KIND_STRUCT, BTF_KIND_UNION);
+    //  fflush(stdout);
      
      if (kind != BTF_KIND_STRUCT && kind != BTF_KIND_UNION) {
          /* 可能是TYPEDEF，需要解析到实际的STRUCT类型 */
          if (kind == BTF_KIND_TYPEDEF) {
              uint32_t *type_ptr = (uint32_t *)(t + 1);
              uint32_t target_type_id = btf->is_be ? u32be(*type_ptr) : u32le(*type_ptr);
-             printf("[DEBUG] type_id %u is TYPEDEF, following to type_id %u\n", struct_type_id, target_type_id);
-             fflush(stdout);
+            //  printf("[DEBUG] type_id %u is TYPEDEF, following to type_id %u\n", struct_type_id, target_type_id);
+            //  fflush(stdout);
              return btf_get_struct_members(btf, target_type_id, members, max_members);
          }
          /* 可能是FWD（前向声明），需要查找完整的STRUCT定义 */
          if (kind == BTF_KIND_FWD) {
              uint32_t name_off = btf->is_be ? u32be(t->name_off) : u32le(t->name_off);
              const char *fwd_name = btf_name_by_offset(btf, name_off);
-             printf("[DEBUG] type_id %u is FWD declaration for '%s', searching for full definition...\n", 
-                    struct_type_id, fwd_name ? fwd_name : "(null)");
-             fflush(stdout);
+            //  printf("[DEBUG] type_id %u is FWD declaration for '%s', searching for full definition...\n", 
+            //         struct_type_id, fwd_name ? fwd_name : "(null)");
+            //  fflush(stdout);
              
              /* 搜索完整的STRUCT定义 */
              for (uint32_t i = 1; i <= btf->nr_types; i++) {
@@ -818,9 +818,9 @@ int32_t btf_find_by_name_kind(const btf_t *btf, const char *name, uint32_t kind)
                      uint32_t candidate_vlen = btf_vlen_with_endian(candidate, btf->is_be);
                      
                      if (candidate_size > 0 && candidate_vlen > 0) {
-                         printf("[DEBUG] Found full STRUCT definition at type_id %u (size=%u, vlen=%u)\n", 
-                                i, candidate_size, candidate_vlen);
-                         fflush(stdout);
+                        //  printf("[DEBUG] Found full STRUCT definition at type_id %u (size=%u, vlen=%u)\n", 
+                        //         i, candidate_size, candidate_vlen);
+                        //  fflush(stdout);
                          return btf_get_struct_members(btf, i, members, max_members);
                      }
                  }
@@ -859,10 +859,10 @@ int32_t btf_find_by_name_kind(const btf_t *btf, const char *name, uint32_t kind)
      
      uint8_t *info_bytes = (uint8_t*)&t->info;
      
-     printf("[DEBUG] btf_get_struct_members: type_id=%u, name='%s', kind=%u\n", 
-            struct_type_id, type_name ? type_name : "(null)", kind);
-     printf("[DEBUG]   size=%u, info_raw=0x%08x, info_direct=0x%08x\n", 
-            size_val, info_raw, info_direct);
+    //  printf("[DEBUG] btf_get_struct_members: type_id=%u, name='%s', kind=%u\n", 
+    //         struct_type_id, type_name ? type_name : "(null)", kind);
+    //  printf("[DEBUG]   size=%u, info_raw=0x%08x, info_direct=0x%08x\n", 
+    //         size_val, info_raw, info_direct);
      /* 尝试多种方式解析vlen，包括从原始字节 */
      /* 如果info bytes是 [02 00 00 04]，在不同的字节序下表示不同的值 */
      uint32_t info_as_le = info_bytes[0] | (info_bytes[1] << 8) | (info_bytes[2] << 16) | (info_bytes[3] << 24);
@@ -870,27 +870,27 @@ int32_t btf_find_by_name_kind(const btf_t *btf, const char *name, uint32_t kind)
      uint32_t vlen_from_info_as_le = BTF_INFO_VLEN(info_as_le);
      uint32_t vlen_from_info_as_be = BTF_INFO_VLEN(info_as_be);
      
-     printf("[DEBUG]   vlen (with endian)=%u, vlen_from_info_raw=%u\n", vlen, vlen_from_info_raw);
-     printf("[DEBUG]   kind_from_info_raw=%u, info bytes: %02x %02x %02x %02x\n",
-            kind_from_info_raw, info_bytes[0], info_bytes[1], info_bytes[2], info_bytes[3]);
-     printf("[DEBUG]   Analyzing info field: info_raw=0x%08x, info_direct=0x%08x\n", 
-            info_raw, info_direct);
-     printf("[DEBUG]   According to new BTF format: vlen should be in low 16 bits (bits 0-15)\n");
-     fflush(stdout);
+    //  printf("[DEBUG]   vlen (with endian)=%u, vlen_from_info_raw=%u\n", vlen, vlen_from_info_raw);
+    //  printf("[DEBUG]   kind_from_info_raw=%u, info bytes: %02x %02x %02x %02x\n",
+    //         kind_from_info_raw, info_bytes[0], info_bytes[1], info_bytes[2], info_bytes[3]);
+    //  printf("[DEBUG]   Analyzing info field: info_raw=0x%08x, info_direct=0x%08x\n", 
+    //         info_raw, info_direct);
+    //  printf("[DEBUG]   According to new BTF format: vlen should be in low 16 bits (bits 0-15)\n");
+    //  fflush(stdout);
      
      /* 如果size > 0但vlen=0，尝试使用info_raw直接解析 */
      if (size_val > 0 && vlen == 0) {
          if (vlen_from_info_raw > 0) {
-             printf("[DEBUG] vlen was 0, but vlen_from_info_raw=%u, using it\n", vlen_from_info_raw);
-             fflush(stdout);
+            //  printf("[DEBUG] vlen was 0, but vlen_from_info_raw=%u, using it\n", vlen_from_info_raw);
+            //  fflush(stdout);
              vlen = vlen_from_info_raw;
          } else {
              /* 如果vlen_from_info_raw也是0，说明info_raw的字节序转换可能有问题 */
              /* 尝试直接从原始字节解析（在little-endian系统中，vlen在byte[0]和byte[1]） */
              uint32_t vlen_from_bytes = info_bytes[0] | (info_bytes[1] << 8);
              if (vlen_from_bytes > 0 && vlen_from_bytes < 65535 && kind_from_info_raw == kind) {
-                 printf("[DEBUG] Trying vlen from raw bytes (little-endian): %u\n", vlen_from_bytes);
-                 fflush(stdout);
+                //  printf("[DEBUG] Trying vlen from raw bytes (little-endian): %u\n", vlen_from_bytes);
+                //  fflush(stdout);
                  vlen = vlen_from_bytes;
              }
          }
@@ -904,10 +904,10 @@ int32_t btf_find_by_name_kind(const btf_t *btf, const char *name, uint32_t kind)
          /* 如果size>0但vlen=0，这很不正常。可能vlen字段解析错误，或者这是特殊的结构体 */
          /* 检查类型后面是否有成员数据 */
          const struct btf_member *m = (const struct btf_member *)(t + 1);
-         printf("[DEBUG] Checking if members exist after type structure...\n");
-         printf("[DEBUG] Type structure ends at %p, checking next %u bytes...\n", 
-                (void *)t, (unsigned int)sizeof(struct btf_type));
-         fflush(stdout);
+        //  printf("[DEBUG] Checking if members exist after type structure...\n");
+        //  printf("[DEBUG] Type structure ends at %p, checking next %u bytes...\n", 
+        //         (void *)t, (unsigned int)sizeof(struct btf_type));
+        //  fflush(stdout);
          
          /* 尝试读取第一个成员，看是否存在 */
          uint32_t raw_test_name_off = m[0].name_off;
@@ -925,14 +925,14 @@ int32_t btf_find_by_name_kind(const btf_t *btf, const char *name, uint32_t kind)
              test_offset = u32le(raw_test_offset);
          }
          const char *test_name = btf_name_by_offset(btf, test_name_off);
-         printf("[DEBUG] First potential member name_off=%u, name=%s, type_id=%u, offset=%u\n", 
-                test_name_off, test_name ? test_name : "(null)", test_type, test_offset);
-         fflush(stdout);
+        //  printf("[DEBUG] First potential member name_off=%u, name=%s, type_id=%u, offset=%u\n", 
+        //         test_name_off, test_name ? test_name : "(null)", test_type, test_offset);
+        //  fflush(stdout);
          
-         /* 如果size>0，应该尝试手动计数，即使第一个成员看起来无效 */
-         /* 因为vlen解析可能错误，或者第一个成员确实是匿名成员 */
-         printf("[DEBUG] size>0 but vlen=0, attempting manual member counting...\n");
-         fflush(stdout);
+        //  /* 如果size>0，应该尝试手动计数，即使第一个成员看起来无效 */
+        //  /* 因为vlen解析可能错误，或者第一个成员确实是匿名成员 */
+        //  printf("[DEBUG] size>0 but vlen=0, attempting manual member counting...\n");
+        //  fflush(stdout);
          
          /* 手动计算成员数量：遍历直到遇到无效数据或超出合理范围 */
          uint32_t manual_vlen = 0;
@@ -948,9 +948,9 @@ int32_t btf_find_by_name_kind(const btf_t *btf, const char *name, uint32_t kind)
              /* 输出原始字节值用于调试 */
              if (i < 3) {
                  uint8_t *type_bytes = (uint8_t*)&m[i].type;
-                 printf("[DEBUG] Raw member[%u] type bytes: %02x %02x %02x %02x (raw_value=0x%08x)\n",
-                        i, type_bytes[0], type_bytes[1], type_bytes[2], type_bytes[3], raw_type);
-                 fflush(stdout);
+                //  printf("[DEBUG] Raw member[%u] type bytes: %02x %02x %02x %02x (raw_value=0x%08x)\n",
+                //         i, type_bytes[0], type_bytes[1], type_bytes[2], type_bytes[3], raw_type);
+                //  fflush(stdout);
              }
              
              uint32_t member_name_off, member_type, member_offset;
@@ -965,9 +965,9 @@ int32_t btf_find_by_name_kind(const btf_t *btf, const char *name, uint32_t kind)
              }
              
              if (i < 3) {
-                 printf("[DEBUG] Converted member[%u]: name_off=%u, type_id=%u, offset=%u\n",
-                        i, member_name_off, member_type, member_offset);
-                 fflush(stdout);
+                //  printf("[DEBUG] Converted member[%u]: name_off=%u, type_id=%u, offset=%u\n",
+                //         i, member_name_off, member_type, member_offset);
+                //  fflush(stdout);
              }
              
              /* 检查是否是结束标记（全0） */
@@ -980,9 +980,9 @@ int32_t btf_find_by_name_kind(const btf_t *btf, const char *name, uint32_t kind)
              /* 检查type_id是否有效 */
              if (member_type == 0 || member_type > btf->nr_types) {
                  /* 如果type_id无效，说明已经读取完所有成员，立即停止 */
-                 printf("[DEBUG] Member %u has invalid type_id=%u (valid range: 1-%u), stopping manual count\n", 
-                        i, member_type, btf->nr_types);
-                 fflush(stdout);
+                //  printf("[DEBUG] Member %u has invalid type_id=%u (valid range: 1-%u), stopping manual count\n", 
+                //         i, member_type, btf->nr_types);
+                //  fflush(stdout);
                  /* 检查是否已经计数了足够的成员（通常是2个：匿名结构体 + cpu_bitmap） */
                  if (manual_vlen >= 2) {
                      printf("[DEBUG] Already counted %u valid members, stopping\n", manual_vlen);
@@ -996,9 +996,9 @@ int32_t btf_find_by_name_kind(const btf_t *btf, const char *name, uint32_t kind)
              if (member_name_off != 0) {
                  uint32_t str_len = btf->is_be ? u32be(btf->hdr->str_len) : u32le(btf->hdr->str_len);
                  if (member_name_off >= str_len) {
-                     printf("[DEBUG] Member %u has invalid name_off=%u (>= str_len=%u), stopping\n", 
-                            i, member_name_off, str_len);
-                     fflush(stdout);
+                    //  printf("[DEBUG] Member %u has invalid name_off=%u (>= str_len=%u), stopping\n", 
+                    //         i, member_name_off, str_len);
+                    //  fflush(stdout);
                      break;
                  }
              }
@@ -1008,9 +1008,9 @@ int32_t btf_find_by_name_kind(const btf_t *btf, const char *name, uint32_t kind)
              /* 前10个成员每次都输出详细信息 */
              if (i < 10) {
                  const char *member_name = btf_name_by_offset(btf, member_name_off);
-                 printf("[DEBUG] Member[%u]: name_off=%u, name=%s, type_id=%u, offset=%u\n",
-                        i, member_name_off, member_name ? member_name : "(anon)", member_type, member_offset);
-                 fflush(stdout);
+                //  printf("[DEBUG] Member[%u]: name_off=%u, name=%s, type_id=%u, offset=%u\n",
+                //         i, member_name_off, member_name ? member_name : "(anon)", member_type, member_offset);
+                //  fflush(stdout);
              }
              
              /* 每100个成员打印一次进度 */
@@ -1117,8 +1117,8 @@ int32_t btf_find_by_name_kind(const btf_t *btf, const char *name, uint32_t kind)
     }
  
      const struct btf_member *m = (const struct btf_member *)(t + 1);
-     printf("[DEBUG] btf_get_struct_members: member array at %p\n", (void *)m);
-     fflush(stdout);
+    //  printf("[DEBUG] btf_get_struct_members: member array at %p\n", (void *)m);
+    //  fflush(stdout);
      
      for (uint32_t i = 0; i < vlen; i++) {
          /* 根据BTF字节序读取成员字段 */
@@ -1184,15 +1184,83 @@ int32_t btf_find_by_name_kind(const btf_t *btf, const char *name, uint32_t kind)
          }
          
          if (i < 5) {
-             printf("[DEBUG] member[%u]: name_off=%u, name=%s, type_id=%u, offset=%u\n", 
-                    i, name_off, members[i].name ? members[i].name : "(null)", type_id, members[i].offset);
-             fflush(stdout);
+            //  printf("[DEBUG] member[%u]: name_off=%u, name=%s, type_id=%u, offset=%u\n", 
+            //         i, name_off, members[i].name ? members[i].name : "(null)", type_id, members[i].offset);
+            //  fflush(stdout);
          }
      }
 
-    printf("[DEBUG] btf_get_struct_members: returning %u members\n", vlen);
-    fflush(stdout);
+    // printf("[DEBUG] btf_get_struct_members: returning %u members\n", vlen);
+    // fflush(stdout);
     return (int32_t)vlen;
+}
+
+int32_t btf_get_struct_outer_members(const btf_t *btf, uint32_t struct_type_id, char *name, btf_member_info_t *out)
+{
+    if (!btf || !name || !out) {
+        return -1;
+    }
+
+    btf_member_info_t members[256];
+    int32_t member_count = btf_get_struct_members(btf, struct_type_id, members, 256);
+    if (member_count <= 0) {
+        return -1;
+    }
+
+    for (int32_t i = 0; i < member_count; i++) {
+        if (members[i].name) {
+            if (strcmp(members[i].name, name) == 0) {
+                *out = members[i];
+                return 0;
+            }
+        }
+    }
+
+    return -1;
+}
+
+int32_t btf_get_struct_1depth_members(const btf_t *btf, uint32_t struct_type_id, char *name, btf_member_info_t *out){
+
+    if (!btf || !name || !out) {
+        return -1;
+    }
+
+    btf_member_info_t members[256];
+    int32_t member_count = btf_get_struct_members(btf, struct_type_id, members, 256);
+    if (member_count <= 0) {
+        return -1;
+    }
+
+    for (int32_t i = 0; i < member_count; i++) {
+        //const char *name = members[i].name ? members[i].name : "<anon>";
+        uint32_t abs_offset = members[i].offset; 
+
+
+        //printf("%s: offset=0x%04x, type_id=%u\n", name, abs_offset, members[i].type_id);
+
+        /* 如果成员本身是结构体或联合体，递归打印其成员 */
+        btf_type_info_t member_type_info = {0};
+        if (btf_get_type_info(btf, members[i].type_id, &member_type_info) == 0) {
+            if (member_type_info.kind == BTF_KIND_STRUCT ||
+                member_type_info.kind == BTF_KIND_UNION) {
+                // print_struct_members_recursive(btf, members[i].type_id, abs_offset, depth + 1);
+
+                btf_member_info_t member_members[256];
+                int32_t member_count = btf_get_struct_members(btf, members[i].type_id, member_members, 256);
+             
+                for (int32_t j = 0; j < member_count; j++) {
+                //    printf("    member_members[%d]: %s: offset=0x%04x, type_id=%u\n", j, member_members[j].name, member_members[j].offset, member_members[j].type_id);
+                  if (member_members[j].name) {
+                    if (strcmp(member_members[j].name, name) == 0) {
+                        *out = member_members[j];
+                        return 0;
+                    }
+                  }
+                }
+            }
+        }
+    }
+    return -1;
 }
 
 /* 根据结构体 type_id + 成员名查找成员信息（单层结构体，不递归） */

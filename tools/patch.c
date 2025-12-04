@@ -377,213 +377,447 @@ static int extract_struct_offsets_from_btf(const char *kimg, int kimg_len, struc
     tools_logi("Extracting struct offsets from BTF...\n");
     
     btf_member_info_t member;
-    
-    // 解析task_struct成员
-    if (btf_find_struct_member(&btf, "task_struct", "pid", &member) == 0) {
-        offsets->task_struct_pid_offset = member.offset / 8;
-        tools_logi("  task_struct.pid offset: %d\n", offsets->task_struct_pid_offset);
+
+    int32_t task_type_id = btf_find_by_name(&btf, "task_struct");
+    if (task_type_id < 0) {
+        tools_loge("task_struct not found\n");
+        return -1;
     }
-    if (btf_find_struct_member(&btf, "task_struct", "tgid", &member) == 0) {
-        offsets->task_struct_tgid_offset = member.offset / 8;
-    }
-    if (btf_find_struct_member(&btf, "task_struct", "thread_pid", &member) == 0) {
-        offsets->task_struct_thread_pid_offset = member.offset / 8;
-    }
-    if (btf_find_struct_member(&btf, "task_struct", "ptracer_cred", &member) == 0) {
-        offsets->task_struct_ptracer_cred_offset = member.offset / 8;
-    }
-    if (btf_find_struct_member(&btf, "task_struct", "real_cred", &member) == 0) {
-        offsets->task_struct_real_cred_offset = member.offset / 8;
-    }
-    if (btf_find_struct_member(&btf, "task_struct", "cred", &member) == 0) {
-        offsets->task_struct_cred_offset = member.offset / 8;
-    }
-    if (btf_find_struct_member(&btf, "task_struct", "fs", &member) == 0) {
-        offsets->task_struct_fs_offset = member.offset / 8;
-    }
-    if (btf_find_struct_member(&btf, "task_struct", "files", &member) == 0) {
-        offsets->task_struct_files_offset = member.offset / 8;
-    }
-    if (btf_find_struct_member(&btf, "task_struct", "loginuid", &member) == 0) {
-        offsets->task_struct_loginuid_offset = member.offset / 8;
-    }
-    if (btf_find_struct_member(&btf, "task_struct", "sessionid", &member) == 0) {
-        offsets->task_struct_sessionid_offset = member.offset / 8;
-    }
-    if (btf_find_struct_member(&btf, "task_struct", "comm", &member) == 0) {
-        offsets->task_struct_comm_offset = member.offset / 8;
-    }
-    if (btf_find_struct_member(&btf, "task_struct", "seccomp", &member) == 0) {
-        offsets->task_struct_seccomp_offset = member.offset / 8;
-    }
-    if (btf_find_struct_member(&btf, "task_struct", "security", &member) == 0) {
-        offsets->task_struct_security_offset = member.offset / 8;
-    }
-    if (btf_find_struct_member(&btf, "task_struct", "stack", &member) == 0) {
-        offsets->task_struct_stack_offset = member.offset / 8;
-    }
-    if (btf_find_struct_member(&btf, "task_struct", "tasks", &member) == 0) {
-        offsets->task_struct_tasks_offset = member.offset / 8;
-    }
-    if (btf_find_struct_member(&btf, "task_struct", "mm", &member) == 0) {
-        offsets->task_struct_mm_offset = member.offset / 8;
-    }
-    if (btf_find_struct_member(&btf, "task_struct", "active_mm", &member) == 0) {
-        offsets->task_struct_active_mm_offset = member.offset / 8;
+
+    int32_t cred_type_id = btf_find_by_name(&btf, "cred");
+    if (cred_type_id < 0) {
+        tools_loge("cred not found\n");
+        return -1;
     }
     
-    // 解析cred结构体成员
-    if (btf_find_struct_member(&btf, "cred", "usage", &member) == 0) {
-        offsets->cred_usage_offset = member.offset / 8;
+    int32_t mm_type_id = btf_find_by_name(&btf, "mm_struct");
+    if (mm_type_id < 0) {
+        tools_loge("mm_struct not found\n");
+        return -1;
     }
-    if (btf_find_struct_member(&btf, "cred", "subscribers", &member) == 0) {
-        offsets->cred_subscribers_offset = member.offset / 8;
+    uint32_t struct_size = 0;
+    tools_logi("parse task_struct members\n");
+    btf_get_type_size_by_id(&btf, (uint32_t)task_type_id, &struct_size);
+    tools_logi("task_struct members (including nested structs): size=0x%04x\n", struct_size);
+
+    {
+        btf_member_info_t task_struct_members = { 0 };
+
+        if (btf_get_struct_outer_members(&btf, (uint32_t)task_type_id, "stack", &task_struct_members) != 0) {
+            tools_loge("stack not found\n");
+            return -1;
+        }
+        offsets->task_struct_stack_offset = task_struct_members.offset;
+
+        if (btf_get_struct_outer_members(&btf, (uint32_t)task_type_id, "pid", &task_struct_members) != 0) {
+            tools_loge("pid not found\n");
+            return -1;
+        }
+        offsets->task_struct_pid_offset = task_struct_members.offset;
+
+        if (btf_get_struct_outer_members(&btf, (uint32_t)task_type_id, "tgid", &task_struct_members) != 0) {
+            tools_loge("tgid not found\n");
+            return -1;
+        }
+        offsets->task_struct_tgid_offset = task_struct_members.offset;
+
+        if (btf_get_struct_outer_members(&btf, (uint32_t)task_type_id, "thread_pid", &task_struct_members) != 0) {
+            tools_loge("thread_pid not found\n");
+            return -1;
+        }
+        offsets->task_struct_thread_pid_offset = task_struct_members.offset;
+
+        if (btf_get_struct_outer_members(&btf, (uint32_t)task_type_id, "ptracer_cred", &task_struct_members) != 0) {
+            tools_loge("ptracer_cred not found\n");
+            return -1;
+        }
+        offsets->task_struct_ptracer_cred_offset = task_struct_members.offset;
+
+        if (btf_get_struct_outer_members(&btf, (uint32_t)task_type_id, "real_cred", &task_struct_members) != 0) {
+            tools_loge("real_cred not found\n");
+            return -1;
+        }
+        offsets->task_struct_real_cred_offset = task_struct_members.offset;
+
+        if (btf_get_struct_outer_members(&btf, (uint32_t)task_type_id, "cred", &task_struct_members) != 0) {
+            tools_loge("cred not found\n");
+            return -1;
+        }
+        offsets->task_struct_cred_offset = task_struct_members.offset;
+
+        if (btf_get_struct_outer_members(&btf, (uint32_t)task_type_id, "fs", &task_struct_members) != 0) {
+            tools_loge("fs not found\n");
+            return -1;
+        }
+        offsets->task_struct_fs_offset = task_struct_members.offset;
+
+        if (btf_get_struct_outer_members(&btf, (uint32_t)task_type_id, "files", &task_struct_members) != 0) {
+            tools_loge("files not found\n");
+            return -1;
+        }
+        offsets->task_struct_files_offset = task_struct_members.offset;
+
+        if (btf_get_struct_outer_members(&btf, (uint32_t)task_type_id, "loginuid", &task_struct_members) != 0) {
+            tools_loge("loginuid not found\n");
+            return -1;
+        }
+        offsets->task_struct_loginuid_offset = task_struct_members.offset;
+
+        if (btf_get_struct_outer_members(&btf, (uint32_t)task_type_id, "sessionid", &task_struct_members) != 0) {
+            tools_loge("sessionid not found\n");
+            return -1;
+        }
+        offsets->task_struct_sessionid_offset = task_struct_members.offset;
+
+        if (btf_get_struct_outer_members(&btf, (uint32_t)task_type_id, "comm", &task_struct_members) != 0) {
+            tools_loge("comm not found\n");
+            return -1;
+        }
+        offsets->task_struct_comm_offset = task_struct_members.offset;
+
+        if (btf_get_struct_outer_members(&btf, (uint32_t)task_type_id, "seccomp", &task_struct_members) != 0) {
+            tools_loge("seccomp not found\n");
+            return -1;
+        }
+        offsets->task_struct_seccomp_offset = task_struct_members.offset;
+
+        if (btf_get_struct_outer_members(&btf, (uint32_t)task_type_id, "security", &task_struct_members) != 0) {
+            tools_loge("security not found\n");
+            return -1;
+        }
+        offsets->task_struct_security_offset = task_struct_members.offset;
+
+        if (btf_get_struct_outer_members(&btf, (uint32_t)task_type_id, "tasks", &task_struct_members) != 0) {
+            tools_loge("tasks not found\n");
+            return -1;
+        }
+        offsets->task_struct_tasks_offset = task_struct_members.offset;
+
+        if (btf_get_struct_outer_members(&btf, (uint32_t)task_type_id, "mm", &task_struct_members) != 0) {
+            tools_loge("mm not found\n");
+            return -1;
+        }
+        offsets->task_struct_mm_offset = task_struct_members.offset;
+
+        if (btf_get_struct_outer_members(&btf, (uint32_t)task_type_id, "active_mm", &task_struct_members) != 0) {
+            tools_loge("active_mm not found\n");
+            return -1;
+        }
     }
-    if (btf_find_struct_member(&btf, "cred", "magic", &member) == 0) {
-        offsets->cred_magic_offset = member.offset / 8;
+
+        // 解析cred结构体成员
+        tools_logi("parse cred members\n");
+        btf_get_type_size_by_id(&btf, (uint32_t)cred_type_id, &struct_size);
+        tools_logi("cred members (including nested structs): size=0x%04x\n", struct_size);
+
+        {
+            btf_member_info_t cred_members = { 0 };
+
+            if (btf_get_struct_outer_members(&btf, (uint32_t)cred_type_id, "usage", &cred_members) != 0) {
+                tools_loge("usage not found\n");
+                return -1;
+            }
+            offsets->cred_usage_offset = cred_members.offset;
+
+            // if (btf_get_struct_outer_members(&btf, (uint32_t)cred_type_id, "subscribers", &cred_members) != 0) {
+            //     tools_loge("subscribers not found\n");
+            //     return -1;
+            // }
+            // offsets->cred_subscribers_offset = cred_members.offset;
+            
+            // if (btf_get_struct_outer_members(&btf, (uint32_t)cred_type_id, "magic", &cred_members) != 0) {
+            //     tools_loge("magic not found\n");
+            //     return -1;
+            // }
+            // offsets->cred_magic_offset = cred_members.offset;
+            
+            if (btf_get_struct_outer_members(&btf, (uint32_t)cred_type_id, "uid", &cred_members) != 0) {
+                tools_loge("uid not found\n");
+                return -1;
+            }
+            offsets->cred_uid_offset = cred_members.offset;
+            
+            if (btf_get_struct_outer_members(&btf, (uint32_t)cred_type_id, "gid", &cred_members) != 0) {
+                tools_loge("gid not found\n");
+                return -1;
+            }
+            offsets->cred_gid_offset = cred_members.offset;
+            
+            if (btf_get_struct_outer_members(&btf, (uint32_t)cred_type_id, "suid", &cred_members) != 0) {
+                tools_loge("suid not found\n");
+                return -1;
+            }
+            offsets->cred_suid_offset = cred_members.offset;
+            
+            if (btf_get_struct_outer_members(&btf, (uint32_t)cred_type_id, "sgid", &cred_members) != 0) {
+                tools_loge("sgid not found\n");
+                return -1;
+            }
+            offsets->cred_sgid_offset = cred_members.offset;
+            
+            if (btf_get_struct_outer_members(&btf, (uint32_t)cred_type_id, "euid", &cred_members) != 0) {
+                tools_loge("euid not found\n");
+                return -1;
+            }
+            offsets->cred_euid_offset = cred_members.offset;
+            
+            if (btf_get_struct_outer_members(&btf, (uint32_t)cred_type_id, "egid", &cred_members) != 0) {
+                tools_loge("egid not found\n");
+                return -1;
+            }
+            offsets->cred_egid_offset = cred_members.offset;
+
+            if (btf_get_struct_outer_members(&btf, (uint32_t)cred_type_id, "fsuid", &cred_members) != 0) {
+                tools_loge("fsuid not found\n");
+                return -1;
+            }
+            offsets->cred_fsuid_offset = cred_members.offset;
+            
+            if (btf_get_struct_outer_members(&btf, (uint32_t)cred_type_id, "fsgid", &cred_members) != 0) {
+                tools_loge("fsgid not found\n");
+                return -1;
+            }
+            offsets->cred_fsgid_offset = cred_members.offset;
+            
+            if (btf_get_struct_outer_members(&btf, (uint32_t)cred_type_id, "securebits", &cred_members) != 0) {
+                tools_loge("securebits not found\n");
+                return -1;
+            }
+            offsets->cred_securebits_offset = cred_members.offset;
+            
+            if (btf_get_struct_outer_members(&btf, (uint32_t)cred_type_id, "cap_inheritable", &cred_members) != 0) {
+                tools_loge("cap_inheritable not found\n");
+                return -1;
+            }
+            offsets->cred_cap_inheritable_offset = cred_members.offset;
+            
+            if (btf_get_struct_outer_members(&btf, (uint32_t)cred_type_id, "cap_permitted", &cred_members) != 0) {
+                tools_loge("cap_permitted not found\n");
+                return -1;
+            }
+            offsets->cred_cap_permitted_offset = cred_members.offset;
+            
+            if (btf_get_struct_outer_members(&btf, (uint32_t)cred_type_id, "cap_effective", &cred_members) != 0) {
+                tools_loge("cap_effective not found\n");
+                return -1;
+            }
+            offsets->cred_cap_effective_offset = cred_members.offset;
+            
+            if (btf_get_struct_outer_members(&btf, (uint32_t)cred_type_id, "cap_bset", &cred_members) != 0) {
+                tools_loge("cap_bset not found\n");
+                return -1;
+            }
+            offsets->cred_cap_bset_offset = cred_members.offset;
+            
+            if (btf_get_struct_outer_members(&btf, (uint32_t)cred_type_id, "cap_ambient", &cred_members) != 0) {
+                tools_loge("cap_ambient not found\n");
+                return -1;
+            }
+            offsets->cred_cap_ambient_offset = cred_members.offset;
+
+            if (btf_get_struct_outer_members(&btf, (uint32_t)cred_type_id, "user", &cred_members) != 0) {
+                tools_loge("user not found\n");
+                return -1;
+            }
+            offsets->cred_user_offset = cred_members.offset;
+            
+            if (btf_get_struct_outer_members(&btf, (uint32_t)cred_type_id, "user_ns", &cred_members) != 0) {
+                tools_loge("user_ns not found\n");
+                return -1;
+            }
+            offsets->cred_user_ns_offset = cred_members.offset;
+            
+            if (btf_get_struct_outer_members(&btf, (uint32_t)cred_type_id, "ucounts", &cred_members) != 0) {
+                tools_loge("ucounts not found\n");
+                return -1;
+            }
+            offsets->cred_ucounts_offset = cred_members.offset;
+            
+            if (btf_get_struct_outer_members(&btf, (uint32_t)cred_type_id, "group_info", &cred_members) != 0) {
+                tools_loge("group_info not found\n");
+                return -1;
+            }
+            offsets->cred_group_info_offset = cred_members.offset;
+            
+            if (btf_get_struct_outer_members(&btf, (uint32_t)cred_type_id, "session_keyring", &cred_members) != 0) {
+                tools_loge("session_keyring not found\n");
+                return -1;
+            }
+            offsets->cred_session_keyring_offset = cred_members.offset;
+            
+            if (btf_get_struct_outer_members(&btf, (uint32_t)cred_type_id, "process_keyring", &cred_members) != 0) {
+                tools_loge("process_keyring not found\n");
+                return -1;
+            }
+            offsets->cred_process_keyring_offset = cred_members.offset;
+            
+            if (btf_get_struct_outer_members(&btf, (uint32_t)cred_type_id, "thread_keyring", &cred_members) != 0) {
+                tools_loge("thread_keyring not found\n");
+                return -1;
+            }
+            offsets->cred_thread_keyring_offset = cred_members.offset;
+            
+            if (btf_get_struct_outer_members(&btf, (uint32_t)cred_type_id, "request_key_auth", &cred_members) != 0) {
+                tools_loge("request_key_auth not found\n");
+                return -1;
+            }
+            offsets->cred_request_key_auth_offset = cred_members.offset;
+            
+            if (btf_get_struct_outer_members(&btf, (uint32_t)cred_type_id, "security", &cred_members) != 0) {
+                tools_loge("security not found\n");
+                return -1;
+            }
+            offsets->cred_security_offset = cred_members.offset;
+            
+            // if (btf_get_struct_outer_members(&btf, (uint32_t)cred_type_id, "rcu", &cred_members) != 0) {
+            //     tools_loge("rcu not found\n");
+            //     return -1;
+            // }
+            // offsets->cred_rcu_offset = cred_members.offset;
+        }
+
+        // 解析mm_struct成员 mm这里需要多解析一层，因为mm的成员是嵌套在一个结构体中的
+        tools_logi("parse mm_struct members\n");
+        btf_get_type_size_by_id(&btf, (uint32_t)mm_type_id, &struct_size);
+        tools_logi("mm_struct members (including nested structs): size=0x%04x\n", struct_size);
+
+        {
+            btf_member_info_t mm_struct_members = { 0 };
+
+            if (btf_get_struct_1depth_members(&btf, (uint32_t)mm_type_id, "mmap_base", &mm_struct_members) != 0) {
+                tools_loge("mmap_base not found\n");
+                return -1;
+            } 
+            offsets->mm_struct_mmap_base_offset = mm_struct_members.offset;
+
+            if (btf_get_struct_1depth_members(&btf, (uint32_t)mm_type_id, "task_size", &mm_struct_members) != 0) {
+                tools_loge("task_size not found\n");
+                return -1;
+            }
+            offsets->mm_struct_task_size_offset = mm_struct_members.offset;
+
+            if (btf_get_struct_1depth_members(&btf, (uint32_t)mm_type_id, "pgd", &mm_struct_members) != 0) {
+                tools_loge("pgd not found\n");
+                return -1;
+            }
+            offsets->mm_struct_pgd_offset = mm_struct_members.offset;
+            tools_logi("mm_struct_pgd_offset: %02x\n", offsets->mm_struct_pgd_offset);
+
+            if (btf_get_struct_1depth_members(&btf, (uint32_t)mm_type_id, "map_count", &mm_struct_members) != 0) {
+                tools_loge("map_count not found\n");
+                return -1;
+            }
+            offsets->mm_struct_map_count_offset = mm_struct_members.offset;
+
+            if (btf_get_struct_1depth_members(&btf, (uint32_t)mm_type_id, "total_vm", &mm_struct_members) != 0) {
+                tools_loge("total_vm not found\n");
+                return -1;
+            }
+            offsets->mm_struct_total_vm_offset = mm_struct_members.offset;
+
+            if (btf_get_struct_1depth_members(&btf, (uint32_t)mm_type_id, "locked_vm", &mm_struct_members) != 0) {
+                tools_loge("locked_vm not found\n");
+                return -1;
+            }
+            offsets->mm_struct_locked_vm_offset = mm_struct_members.offset;
+
+            if (btf_get_struct_1depth_members(&btf, (uint32_t)mm_type_id, "pinned_vm", &mm_struct_members) != 0) {
+                tools_loge("pinned_vm not found\n");
+                return -1;
+            }
+            offsets->mm_struct_pinned_vm_offset = mm_struct_members.offset;
+
+            if (btf_get_struct_1depth_members(&btf, (uint32_t)mm_type_id, "data_vm", &mm_struct_members) != 0) {
+                tools_loge("data_vm not found\n");
+                return -1;
+            }
+            offsets->mm_struct_data_vm_offset = mm_struct_members.offset;
+
+            if (btf_get_struct_1depth_members(&btf, (uint32_t)mm_type_id, "exec_vm", &mm_struct_members) != 0) {
+                tools_loge("exec_vm not found\n");
+                return -1;
+            }
+            offsets->mm_struct_exec_vm_offset = mm_struct_members.offset;
+            
+            if (btf_get_struct_1depth_members(&btf, (uint32_t)mm_type_id, "stack_vm", &mm_struct_members) != 0) {
+                tools_loge("stack_vm not found\n");
+                return -1;
+            }
+            offsets->mm_struct_stack_vm_offset = mm_struct_members.offset;
+
+            if (btf_get_struct_1depth_members(&btf, (uint32_t)mm_type_id, "start_code", &mm_struct_members) != 0) {
+                tools_loge("start_code not found\n");
+                return -1;
+            }
+            offsets->mm_struct_start_code_offset = mm_struct_members.offset;
+
+            if (btf_get_struct_1depth_members(&btf, (uint32_t)mm_type_id, "end_code", &mm_struct_members) != 0) {
+                tools_loge("end_code not found\n");
+                return -1;
+            }
+            offsets->mm_struct_end_code_offset = mm_struct_members.offset;
+            
+            if (btf_get_struct_1depth_members(&btf, (uint32_t)mm_type_id, "start_data", &mm_struct_members) != 0) {
+                tools_loge("start_data not found\n");
+                return -1;
+            }
+            offsets->mm_struct_start_data_offset = mm_struct_members.offset;
+            
+            if (btf_get_struct_1depth_members(&btf, (uint32_t)mm_type_id, "end_data", &mm_struct_members) != 0) {
+                tools_loge("end_data not found\n");
+                return -1;
+            }
+            offsets->mm_struct_end_data_offset = mm_struct_members.offset;
+
+            if (btf_get_struct_1depth_members(&btf, (uint32_t)mm_type_id, "start_brk", &mm_struct_members) != 0) {
+                tools_loge("start_brk not found\n");
+                return -1;
+            }
+            offsets->mm_struct_start_brk_offset = mm_struct_members.offset;
+
+            if (btf_get_struct_1depth_members(&btf, (uint32_t)mm_type_id, "brk", &mm_struct_members) != 0) {
+                tools_loge("brk not found\n");
+                return -1;
+            }
+            offsets->mm_struct_brk_offset = mm_struct_members.offset;
+            
+            if (btf_get_struct_1depth_members(&btf, (uint32_t)mm_type_id, "start_stack", &mm_struct_members) != 0) {
+                tools_loge("start_stack not found\n");
+                return -1;
+            }
+            offsets->mm_struct_start_stack_offset = mm_struct_members.offset;
+
+            if (btf_get_struct_1depth_members(&btf, (uint32_t)mm_type_id, "arg_start", &mm_struct_members) != 0) {
+                tools_loge("arg_start not found\n");
+                return -1;
+            }
+            offsets->mm_struct_arg_start_offset = mm_struct_members.offset;
+
+            if (btf_get_struct_1depth_members(&btf, (uint32_t)mm_type_id, "arg_end", &mm_struct_members) != 0) {
+                tools_loge("arg_end not found\n");
+                return -1;
+            }
+            offsets->mm_struct_arg_end_offset = mm_struct_members.offset;
+
+            if (btf_get_struct_1depth_members(&btf, (uint32_t)mm_type_id, "env_start", &mm_struct_members) != 0) {
+                tools_loge("env_start not found\n");
+                return -1;
+            }
+            offsets->mm_struct_env_start_offset = mm_struct_members.offset;
+            
+            if (btf_get_struct_1depth_members(&btf, (uint32_t)mm_type_id, "env_end", &mm_struct_members) != 0) {
+                tools_loge("env_end not found\n");
+                return -1;
+            }
+            offsets->mm_struct_env_end_offset = mm_struct_members.offset;
+        }
+        
+
+
+        btf_free(&btf);
+        tools_logi("BTF struct offsets extraction completed\n");
+        return 0;
     }
-    if (btf_find_struct_member(&btf, "cred", "uid", &member) == 0) {
-        offsets->cred_uid_offset = member.offset / 8;
-    }
-    if (btf_find_struct_member(&btf, "cred", "gid", &member) == 0) {
-        offsets->cred_gid_offset = member.offset / 8;
-    }
-    if (btf_find_struct_member(&btf, "cred", "suid", &member) == 0) {
-        offsets->cred_suid_offset = member.offset / 8;
-    }
-    if (btf_find_struct_member(&btf, "cred", "sgid", &member) == 0) {
-        offsets->cred_sgid_offset = member.offset / 8;
-    }
-    if (btf_find_struct_member(&btf, "cred", "euid", &member) == 0) {
-        offsets->cred_euid_offset = member.offset / 8;
-    }
-    if (btf_find_struct_member(&btf, "cred", "egid", &member) == 0) {
-        offsets->cred_egid_offset = member.offset / 8;
-    }
-    if (btf_find_struct_member(&btf, "cred", "fsuid", &member) == 0) {
-        offsets->cred_fsuid_offset = member.offset / 8;
-    }
-    if (btf_find_struct_member(&btf, "cred", "fsgid", &member) == 0) {
-        offsets->cred_fsgid_offset = member.offset / 8;
-    }
-    if (btf_find_struct_member(&btf, "cred", "securebits", &member) == 0) {
-        offsets->cred_securebits_offset = member.offset / 8;
-    }
-    if (btf_find_struct_member(&btf, "cred", "cap_inheritable", &member) == 0) {
-        offsets->cred_cap_inheritable_offset = member.offset / 8;
-    }
-    if (btf_find_struct_member(&btf, "cred", "cap_permitted", &member) == 0) {
-        offsets->cred_cap_permitted_offset = member.offset / 8;
-    }
-    if (btf_find_struct_member(&btf, "cred", "cap_effective", &member) == 0) {
-        offsets->cred_cap_effective_offset = member.offset / 8;
-    }
-    if (btf_find_struct_member(&btf, "cred", "cap_bset", &member) == 0) {
-        offsets->cred_cap_bset_offset = member.offset / 8;
-    }
-    if (btf_find_struct_member(&btf, "cred", "cap_ambient", &member) == 0) {
-        offsets->cred_cap_ambient_offset = member.offset / 8;
-    }
-    if (btf_find_struct_member(&btf, "cred", "user", &member) == 0) {
-        offsets->cred_user_offset = member.offset / 8;
-    }
-    if (btf_find_struct_member(&btf, "cred", "user_ns", &member) == 0) {
-        offsets->cred_user_ns_offset = member.offset / 8;
-    }
-    if (btf_find_struct_member(&btf, "cred", "ucounts", &member) == 0) {
-        offsets->cred_ucounts_offset = member.offset / 8;
-    }
-    if (btf_find_struct_member(&btf, "cred", "group_info", &member) == 0) {
-        offsets->cred_group_info_offset = member.offset / 8;
-    }
-    if (btf_find_struct_member(&btf, "cred", "session_keyring", &member) == 0) {
-        offsets->cred_session_keyring_offset = member.offset / 8;
-    }
-    if (btf_find_struct_member(&btf, "cred", "process_keyring", &member) == 0) {
-        offsets->cred_process_keyring_offset = member.offset / 8;
-    }
-    if (btf_find_struct_member(&btf, "cred", "thread_keyring", &member) == 0) {
-        offsets->cred_thread_keyring_offset = member.offset / 8;
-    }
-    if (btf_find_struct_member(&btf, "cred", "request_key_auth", &member) == 0) {
-        offsets->cred_request_key_auth_offset = member.offset / 8;
-    }
-    if (btf_find_struct_member(&btf, "cred", "security", &member) == 0) {
-        offsets->cred_security_offset = member.offset / 8;
-    }
-    if (btf_find_struct_member(&btf, "cred", "rcu", &member) == 0) {
-        offsets->cred_rcu_offset = member.offset / 8;
-    }
-    
-    // 解析mm_struct成员
-    if (btf_find_struct_member(&btf, "mm_struct", "mmap_base", &member) == 0) {
-        offsets->mm_struct_mmap_base_offset = member.offset / 8;
-    }
-    if (btf_find_struct_member(&btf, "mm_struct", "task_size", &member) == 0) {
-        offsets->mm_struct_task_size_offset = member.offset / 8;
-    }
-    if (btf_find_struct_member(&btf, "mm_struct", "pgd", &member) == 0) {
-        offsets->mm_struct_pgd_offset = member.offset / 8;
-    }
-    if (btf_find_struct_member(&btf, "mm_struct", "map_count", &member) == 0) {
-        offsets->mm_struct_map_count_offset = member.offset / 8;
-    }
-    if (btf_find_struct_member(&btf, "mm_struct", "total_vm", &member) == 0) {
-        offsets->mm_struct_total_vm_offset = member.offset / 8;
-    }
-    if (btf_find_struct_member(&btf, "mm_struct", "locked_vm", &member) == 0) {
-        offsets->mm_struct_locked_vm_offset = member.offset / 8;
-    }
-    if (btf_find_struct_member(&btf, "mm_struct", "pinned_vm", &member) == 0) {
-        offsets->mm_struct_pinned_vm_offset = member.offset / 8;
-    }
-    if (btf_find_struct_member(&btf, "mm_struct", "data_vm", &member) == 0) {
-        offsets->mm_struct_data_vm_offset = member.offset / 8;
-    }
-    if (btf_find_struct_member(&btf, "mm_struct", "exec_vm", &member) == 0) {
-        offsets->mm_struct_exec_vm_offset = member.offset / 8;
-    }
-    if (btf_find_struct_member(&btf, "mm_struct", "stack_vm", &member) == 0) {
-        offsets->mm_struct_stack_vm_offset = member.offset / 8;
-    }
-    if (btf_find_struct_member(&btf, "mm_struct", "start_code", &member) == 0) {
-        offsets->mm_struct_start_code_offset = member.offset / 8;
-    }
-    if (btf_find_struct_member(&btf, "mm_struct", "end_code", &member) == 0) {
-        offsets->mm_struct_end_code_offset = member.offset / 8;
-    }
-    if (btf_find_struct_member(&btf, "mm_struct", "start_data", &member) == 0) {
-        offsets->mm_struct_start_data_offset = member.offset / 8;
-    }
-    if (btf_find_struct_member(&btf, "mm_struct", "end_data", &member) == 0) {
-        offsets->mm_struct_end_data_offset = member.offset / 8;
-    }
-    if (btf_find_struct_member(&btf, "mm_struct", "start_brk", &member) == 0) {
-        offsets->mm_struct_start_brk_offset = member.offset / 8;
-    }
-    if (btf_find_struct_member(&btf, "mm_struct", "brk", &member) == 0) {
-        offsets->mm_struct_brk_offset = member.offset / 8;
-    }
-    if (btf_find_struct_member(&btf, "mm_struct", "start_stack", &member) == 0) {
-        offsets->mm_struct_start_stack_offset = member.offset / 8;
-    }
-    if (btf_find_struct_member(&btf, "mm_struct", "arg_start", &member) == 0) {
-        offsets->mm_struct_arg_start_offset = member.offset / 8;
-    }
-    if (btf_find_struct_member(&btf, "mm_struct", "arg_end", &member) == 0) {
-        offsets->mm_struct_arg_end_offset = member.offset / 8;
-    }
-    if (btf_find_struct_member(&btf, "mm_struct", "env_start", &member) == 0) {
-        offsets->mm_struct_env_start_offset = member.offset / 8;
-    }
-    if (btf_find_struct_member(&btf, "mm_struct", "env_end", &member) == 0) {
-        offsets->mm_struct_env_end_offset = member.offset / 8;
-    }
-    
-    btf_free(&btf);
-    tools_logi("BTF struct offsets extraction completed\n");
-    return 0;
-}
 
 int patch_update_img(const char *kimg_path, const char *kpimg_path, const char *out_path, const char *superkey,
                      bool root_key, const char **additional, extra_config_t *extra_configs, int extra_config_num)
@@ -803,12 +1037,16 @@ int patch_update_img(const char *kimg_path, const char *kpimg_path, const char *
     if (extract_struct_offsets_from_btf(kernel_file.kimg, kernel_file.kimg_len, &setup->struct_offsets) != 0) {
         tools_loge_exit("Failed to extract struct offsets from BTF. BTF is required for this branch.\n");
     }
-    
+
     // 字节序转换（如果需要）
     if ((is_be() ^ kinfo->is_be)) {
         // struct_offsets中的所有int32_t字段需要字节序转换
         // 但由于int32_t在大多数情况下不需要转换（除非跨不同字节序系统），这里暂时不转换
         // 如果需要，可以添加转换逻辑
+
+        for (int64_t *pos = (int64_t *)&setup->struct_offsets; pos <= (int64_t *)&setup->struct_offsets; pos++) {
+            *pos = i64swp(*pos);
+        }
     }
 
     // superkey
