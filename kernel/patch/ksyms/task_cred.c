@@ -249,12 +249,18 @@ int resolve_current()
 我们拿到任意一个当前 task 的栈指针（sp）后，
 就能依据对齐关系找到对应的栈底，再结合“栈结束哨兵”位置得出 THREAD_SIZE
 */
+uint64_t sp_el0, sp;
+asm volatile("mrs %0, sp_el0" : "=r"(sp_el0));
+asm volatile("mov %0, sp" : "=r"(sp));
+
+    if (!struct_offsets_config) {
+        logke("struct_offsets_config not initialized in resolve_current\n");
+        return -1;
+    }
 
     stack_in_task_offset = struct_offsets_config->task_struct_stack_offset;
 
-    uint64_t sp_el0, sp;
-    asm volatile("mrs %0, sp_el0" : "=r"(sp_el0));
-    asm volatile("mov %0, sp" : "=r"(sp));
+
 
     // THREAD_SIZE and end_of_stack and CONFIG_THREAD_INFO_IN_TASK
     // don't worry, we use little stack until here

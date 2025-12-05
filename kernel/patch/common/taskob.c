@@ -23,7 +23,12 @@
 
 static inline void prepare_init_ext(struct task_struct *task)
 {
+    if (!task) return;
     struct task_ext *ext = get_task_ext(task);
+    if (!ext) {
+        logke("prepare_init_ext: get_task_ext failed for init_task\n");
+        return;
+    }
     for (uintptr_t i = (uintptr_t)ext; i < (uintptr_t)ext + sizeof(struct task_ext); i += 8) {
         *(uintptr_t *)i = 0;
     }

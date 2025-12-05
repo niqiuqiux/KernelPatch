@@ -65,13 +65,21 @@ static void before_rest_init(hook_fargs4_t *args, void *udata)
     if ((rc = bypass_kcfi())) goto out;
     log_boot("bypass_kcfi done: %d\n", rc);
 
-    if ((rc = resolve_struct())) goto out;
+    if ((rc = resolve_struct())) {
+        log_boot("resolve_struct failed: %d, cannot continue\n", rc);
+        goto out;
+    }
     log_boot("resolve_struct done: %d\n", rc);
 
     if ((rc = bypass_selinux())) goto out;
     log_boot("bypass_selinux done: %d\n", rc);
 
-    if ((rc = task_observer())) goto out;
+    // task_observer() 依赖于 resolve_struct() 成功初始化 offset
+    // 如果 resolve_struct() 失败，task_observer() 可能会访问错误地址
+    if ((rc = task_observer())) {
+        log_boot("task_observer failed: %d\n", rc);
+        goto out;
+    }
     log_boot("task_observer done: %d\n", rc);
 
     rc = supercall_install();
