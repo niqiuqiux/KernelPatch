@@ -1047,12 +1047,9 @@ int patch_update_img(const char *kimg_path, const char *kpimg_path, const char *
 
     // 字节序转换（如果需要）
     if ((is_be() ^ kinfo->is_be)) {
-        // struct_offsets中的所有int32_t字段需要字节序转换
-        // 遍历struct_offsets_t中的所有int32_t字段进行字节序转换
-        int32_t *fields = (int32_t *)&setup->struct_offsets;
-        size_t field_count = STRUCT_OFFSETS_LEN / sizeof(int32_t);
-        for (size_t i = 0; i < field_count; i++) {
-            fields[i] = i32swp(fields[i]);
+        int16_t *fields = (int16_t *)&setup->struct_offsets;
+        for (size_t i = 0; i < STRUCT_OFFSETS_INT16_COUNT; i++) {
+            fields[i] = i16swp(fields[i]);
         }
     }
 

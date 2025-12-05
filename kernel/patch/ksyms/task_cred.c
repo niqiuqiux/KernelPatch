@@ -28,7 +28,7 @@
 
 #define TASK_COMM_LEN 16
 
-extern struct_offsets_t *struct_offsets_config;
+
 
 #define TASK_STRUCT_MAX_SIZE 0x1800
 #define THREAD_INFO_MAX_SIZE 0x90

@@ -11,6 +11,7 @@
 
 extern struct patch_config *patch_config;
 extern setup_header_t *setup_header;
+extern struct_offsets_t *struct_offsets_config;
 
 int auth_superkey(const char *key);
 void reset_superkey(const char *key);
