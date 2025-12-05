@@ -73,6 +73,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           tag: ${{ steps.parse_version.outputs.VERSION }}
+          name: Release ${{ steps.parse_version.outputs.VERSION }} (Branch: ${{ github.ref_name }})
           artifacts: |
             kernel/kpimg-linux
             kernel/kpimg-android
@@ -114,6 +115,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           tag: ${{ steps.parse_version.outputs.VERSION }}
+          name: Release ${{ steps.parse_version.outputs.VERSION }} (Branch: ${{ github.ref_name }})
           artifacts: |
             kpuser.zip
           allowUpdates: true
@@ -175,6 +177,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           tag: ${{ steps.parse_version.outputs.VERSION }}
+          name: Release ${{ steps.parse_version.outputs.VERSION }} (Branch: ${{ github.ref_name }})
           artifacts: |
             tools/build/android/kptools-android
           allowUpdates: true
@@ -223,6 +226,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           tag: ${{ steps.parse_version.outputs.VERSION }}
+          name: Release ${{ steps.parse_version.outputs.VERSION }} (Branch: ${{ github.ref_name }})
           artifacts: |
             tools/build/kptools-linux
           allowUpdates: true
@@ -277,11 +281,19 @@ jobs:
           cp D:\a\_temp\msys64\usr\bin\msys-2.0.dll .\win
           cp D:\a\_temp\msys64\usr\bin\msys-z.dll .\win
           7z a kptools-msys2-win .\win 
+      - name: Get branch name
+        shell: pwsh
+        id: get_branch
+        run: |
+          $BRANCH = "${{ github.ref_name }}"
+          Write-Output "Branch: $BRANCH"
+          "BRANCH=$BRANCH" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
       - name: Release
         uses: ncipollo/release-action@v1.12.0
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           tag: ${{ env.VERSION }}
+          name: Release ${{ env.VERSION }} (Branch: ${{ github.ref_name }})
           artifacts: |
             kptools-msys2-win.7z
           allowUpdates: true
@@ -323,6 +335,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           tag: ${{ steps.parse_version.outputs.VERSION }}
+          name: Release ${{ steps.parse_version.outputs.VERSION }} (Branch: ${{ github.ref_name }})
           artifacts: |
             tools/build/kptools-mac
           allowUpdates: true
