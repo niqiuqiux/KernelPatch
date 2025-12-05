@@ -73,7 +73,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           tag: ${{ steps.parse_version.outputs.VERSION }}
-          name: Release ${{ steps.parse_version.outputs.VERSION }} (Branch: ${{ github.ref_name }})
+          name: "Release ${{ steps.parse_version.outputs.VERSION }} (Branch: ${{ github.ref_name }})"
           artifacts: |
             kernel/kpimg-linux
             kernel/kpimg-android
@@ -115,7 +115,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           tag: ${{ steps.parse_version.outputs.VERSION }}
-          name: Release ${{ steps.parse_version.outputs.VERSION }} (Branch: ${{ github.ref_name }})
+          name: "Release ${{ steps.parse_version.outputs.VERSION }} (Branch: ${{ github.ref_name }})"
           artifacts: |
             kpuser.zip
           allowUpdates: true
@@ -177,7 +177,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           tag: ${{ steps.parse_version.outputs.VERSION }}
-          name: Release ${{ steps.parse_version.outputs.VERSION }} (Branch: ${{ github.ref_name }})
+          name: "Release ${{ steps.parse_version.outputs.VERSION }} (Branch: ${{ github.ref_name }})"
           artifacts: |
             tools/build/android/kptools-android
           allowUpdates: true
@@ -226,7 +226,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           tag: ${{ steps.parse_version.outputs.VERSION }}
-          name: Release ${{ steps.parse_version.outputs.VERSION }} (Branch: ${{ github.ref_name }})
+          name: "Release ${{ steps.parse_version.outputs.VERSION }} (Branch: ${{ github.ref_name }})"
           artifacts: |
             tools/build/kptools-linux
           allowUpdates: true
@@ -293,7 +293,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           tag: ${{ env.VERSION }}
-          name: Release ${{ env.VERSION }} (Branch: ${{ github.ref_name }})
+          name: "Release ${{ env.VERSION }} (Branch: ${{ github.ref_name }})"
           artifacts: |
             kptools-msys2-win.7z
           allowUpdates: true
@@ -335,7 +335,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           tag: ${{ steps.parse_version.outputs.VERSION }}
-          name: Release ${{ steps.parse_version.outputs.VERSION }} (Branch: ${{ github.ref_name }})
+          name: "Release ${{ steps.parse_version.outputs.VERSION }} (Branch: ${{ github.ref_name }})"
           artifacts: |
             tools/build/kptools-mac
           allowUpdates: true
