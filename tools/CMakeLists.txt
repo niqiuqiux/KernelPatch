@@ -14,6 +14,7 @@ set(SOURCES
 	kpm.c
 	common.c
 	sha256.c
+	btf.c
 )
 
 add_executable(

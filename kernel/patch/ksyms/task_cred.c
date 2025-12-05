@@ -3,6 +3,7 @@
  * Copyright (C) 2023 bmax121. All Rights Reserved.
  */
 
+#include "predata.h"
 #include <log.h>
 #include <stdbool.h>
 #include <linux/cred.h>
@@ -609,6 +610,73 @@ int resolve_mm_struct_offset()
     return 0;
 }
 
+
+
+void print_struct_offsets()
+{
+    if (!struct_offsets_config) {
+        log_boot("struct_offsets_config is not initialized\n");
+        return;
+    }
+    log_boot("task_struct struct_offsets: \n");
+    log_boot("    pid_offset: %x\n", struct_offsets_config->task_struct_pid_offset);
+    log_boot("    tgid_offset: %x\n", struct_offsets_config->task_struct_tgid_offset);
+    log_boot("    thread_pid_offset: %x\n", struct_offsets_config->task_struct_thread_pid_offset);
+    log_boot("    ptracer_cred_offset: %x\n", struct_offsets_config->task_struct_ptracer_cred_offset);
+    log_boot("    real_cred_offset: %x\n", struct_offsets_config->task_struct_real_cred_offset);
+    log_boot("    cred_offset: %x\n", struct_offsets_config->task_struct_cred_offset);
+    log_boot("    fs_offset: %x\n", struct_offsets_config->task_struct_fs_offset);
+    log_boot("    files_offset: %x\n", struct_offsets_config->task_struct_files_offset);
+    log_boot("    loginuid_offset: %x\n", struct_offsets_config->task_struct_loginuid_offset);
+    log_boot("    sessionid_offset: %x\n", struct_offsets_config->task_struct_sessionid_offset);
+    log_boot("    comm_offset: %x\n", struct_offsets_config->task_struct_comm_offset);
+    log_boot("    seccomp_offset: %x\n", struct_offsets_config->task_struct_seccomp_offset);
+    log_boot("    security_offset: %x\n", struct_offsets_config->task_struct_security_offset);
+    log_boot("    stack_offset: %x\n", struct_offsets_config->task_struct_stack_offset);
+    log_boot("    tasks_offset: %x\n", struct_offsets_config->task_struct_tasks_offset);
+    log_boot("    mm_offset: %x\n", struct_offsets_config->task_struct_mm_offset);
+    log_boot("    active_mm_offset: %x\n", struct_offsets_config->task_struct_active_mm_offset);
+    log_boot("cred struct_offsets: \n");
+    log_boot("    usage_offset: %x\n", struct_offsets_config->cred_usage_offset);
+    log_boot("    subscribers_offset: %x\n", struct_offsets_config->cred_subscribers_offset);
+    log_boot("    magic_offset: %x\n", struct_offsets_config->cred_magic_offset);
+    log_boot("    uid_offset: %x\n", struct_offsets_config->cred_uid_offset);
+    log_boot("    gid_offset: %x\n", struct_offsets_config->cred_gid_offset);
+    log_boot("    suid_offset: %x\n", struct_offsets_config->cred_suid_offset);
+    log_boot("    sgid_offset: %x\n", struct_offsets_config->cred_sgid_offset);
+    log_boot("    euid_offset: %x\n", struct_offsets_config->cred_euid_offset);
+    log_boot("    egid_offset: %x\n", struct_offsets_config->cred_egid_offset);
+    log_boot("    fsuid_offset: %x\n", struct_offsets_config->cred_fsuid_offset);
+    log_boot("    fsgid_offset: %x\n", struct_offsets_config->cred_fsgid_offset);
+    log_boot("    securebits_offset: %x\n", struct_offsets_config->cred_securebits_offset);
+    log_boot("    cap_inheritable_offset: %x\n", struct_offsets_config->cred_cap_inheritable_offset);
+    log_boot("    cap_permitted_offset: %x\n", struct_offsets_config->cred_cap_permitted_offset);
+    log_boot("    cap_effective_offset: %x\n", struct_offsets_config->cred_cap_effective_offset);
+    log_boot("    cap_bset_offset: %x\n", struct_offsets_config->cred_cap_bset_offset);
+    log_boot("    cap_ambient_offset: %x\n", struct_offsets_config->cred_cap_ambient_offset);
+    log_boot("    user_offset: %x\n", struct_offsets_config->cred_user_offset);
+    log_boot("    user_ns_offset: %x\n", struct_offsets_config->cred_user_ns_offset);
+    log_boot("    ucounts_offset: %x\n", struct_offsets_config->cred_ucounts_offset);
+    log_boot("    group_info_offset: %x\n", struct_offsets_config->cred_group_info_offset);
+    log_boot("    session_keyring_offset: %x\n", struct_offsets_config->cred_session_keyring_offset);
+    log_boot("    process_keyring_offset: %x\n", struct_offsets_config->cred_process_keyring_offset);
+    log_boot("    thread_keyring_offset: %x\n", struct_offsets_config->cred_thread_keyring_offset);
+    log_boot("    request_key_auth_offset: %x\n", struct_offsets_config->cred_request_key_auth_offset);
+    log_boot("    security_offset: %x\n", struct_offsets_config->cred_security_offset);
+    log_boot("    rcu_offset: %x\n", struct_offsets_config->cred_rcu_offset);
+    log_boot("mm_struct struct_offsets: \n");
+    log_boot("    mmap_base_offset: %x\n", struct_offsets_config->mm_struct_mmap_base_offset);
+    log_boot("    task_size_offset: %x\n", struct_offsets_config->mm_struct_task_size_offset);
+    log_boot("    pgd_offset: %x\n", struct_offsets_config->mm_struct_pgd_offset);
+    log_boot("    map_count_offset: %x\n", struct_offsets_config->mm_struct_map_count_offset);
+}
+
+
+
+
+
+
+
 int resolve_struct()
 {
     full_cap = CAP_FULL_SET;
@@ -622,6 +690,8 @@ int resolve_struct()
     if ((err = resolve_cred_offset())) goto out;
 
     resolve_mm_struct_offset();
+
+    print_struct_offsets();
 
 out:
     return err;
