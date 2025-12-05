@@ -73,6 +73,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           tag: ${{ steps.parse_version.outputs.VERSION }}
+          commit: ${{ github.sha }}
           name: "Release ${{ steps.parse_version.outputs.VERSION }} (Branch: ${{ github.ref_name }})"
           artifacts: |
             kernel/kpimg-linux
@@ -115,6 +116,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           tag: ${{ steps.parse_version.outputs.VERSION }}
+          commit: ${{ github.sha }}
           name: "Release ${{ steps.parse_version.outputs.VERSION }} (Branch: ${{ github.ref_name }})"
           artifacts: |
             kpuser.zip
@@ -177,6 +179,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           tag: ${{ steps.parse_version.outputs.VERSION }}
+          commit: ${{ github.sha }}
           name: "Release ${{ steps.parse_version.outputs.VERSION }} (Branch: ${{ github.ref_name }})"
           artifacts: |
             tools/build/android/kptools-android
@@ -226,6 +229,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           tag: ${{ steps.parse_version.outputs.VERSION }}
+          commit: ${{ github.sha }}
           name: "Release ${{ steps.parse_version.outputs.VERSION }} (Branch: ${{ github.ref_name }})"
           artifacts: |
             tools/build/kptools-linux
@@ -293,6 +297,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           tag: ${{ env.VERSION }}
+          commit: ${{ github.sha }}
           name: "Release ${{ env.VERSION }} (Branch: ${{ github.ref_name }})"
           artifacts: |
             kptools-msys2-win.7z
@@ -335,6 +340,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           tag: ${{ steps.parse_version.outputs.VERSION }}
+          commit: ${{ github.sha }}
           name: "Release ${{ steps.parse_version.outputs.VERSION }} (Branch: ${{ github.ref_name }})"
           artifacts: |
             tools/build/kptools-mac
