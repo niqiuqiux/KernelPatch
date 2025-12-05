@@ -13,6 +13,7 @@ set(SOURCES
 	symbol.c
 	kpm.c
 	common.c
+	btf.c
 	sha256.c
 )
 
