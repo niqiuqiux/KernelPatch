@@ -15,6 +15,12 @@ jobs:
         with:
           submodules: "recursive"
           fetch-depth: 0
+      - name: Get commit SHA
+        id: get_commit
+        run: |
+          COMMIT_SHA=$(git rev-parse HEAD)
+          echo "Commit SHA: $COMMIT_SHA"
+          echo "COMMIT_SHA=$COMMIT_SHA" >> $GITHUB_OUTPUT
       - name: Generate version
         id: parse_version
         run: |
@@ -73,7 +79,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           tag: ${{ steps.parse_version.outputs.VERSION }}
-          commit: ${{ github.sha }}
+          commit: ${{ steps.get_commit.outputs.COMMIT_SHA }}
           name: "Release ${{ steps.parse_version.outputs.VERSION }} (Branch: ${{ github.ref_name }})"
           artifacts: |
             kernel/kpimg-linux
@@ -93,6 +99,12 @@ jobs:
     steps:
       - name: Check out
         uses: actions/checkout@v4
+      - name: Get commit SHA
+        id: get_commit
+        run: |
+          COMMIT_SHA=$(git rev-parse HEAD)
+          echo "Commit SHA: $COMMIT_SHA"
+          echo "COMMIT_SHA=$COMMIT_SHA" >> $GITHUB_OUTPUT
       - name: Generate version
         id: parse_version
         run: |
@@ -116,7 +128,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           tag: ${{ steps.parse_version.outputs.VERSION }}
-          commit: ${{ github.sha }}
+          commit: ${{ steps.get_commit.outputs.COMMIT_SHA }}
           name: "Release ${{ steps.parse_version.outputs.VERSION }} (Branch: ${{ github.ref_name }})"
           artifacts: |
             kpuser.zip
@@ -134,6 +146,12 @@ jobs:
         with:
           submodules: "recursive"
           fetch-depth: 0
+      - name: Get commit SHA
+        id: get_commit
+        run: |
+          COMMIT_SHA=$(git rev-parse HEAD)
+          echo "Commit SHA: $COMMIT_SHA"
+          echo "COMMIT_SHA=$COMMIT_SHA" >> $GITHUB_OUTPUT
       - name: Generate version
         id: parse_version
         run: |
@@ -179,7 +197,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           tag: ${{ steps.parse_version.outputs.VERSION }}
-          commit: ${{ github.sha }}
+          commit: ${{ steps.get_commit.outputs.COMMIT_SHA }}
           name: "Release ${{ steps.parse_version.outputs.VERSION }} (Branch: ${{ github.ref_name }})"
           artifacts: |
             tools/build/android/kptools-android
@@ -194,6 +212,12 @@ jobs:
     steps:
       - name: Check out
         uses: actions/checkout@v4
+      - name: Get commit SHA
+        id: get_commit
+        run: |
+          COMMIT_SHA=$(git rev-parse HEAD)
+          echo "Commit SHA: $COMMIT_SHA"
+          echo "COMMIT_SHA=$COMMIT_SHA" >> $GITHUB_OUTPUT
       - name: Generate version
         id: parse_version
         run: |
@@ -229,7 +253,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           tag: ${{ steps.parse_version.outputs.VERSION }}
-          commit: ${{ github.sha }}
+          commit: ${{ steps.get_commit.outputs.COMMIT_SHA }}
           name: "Release ${{ steps.parse_version.outputs.VERSION }} (Branch: ${{ github.ref_name }})"
           artifacts: |
             tools/build/kptools-linux
@@ -243,6 +267,14 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
+      - name: Get commit SHA
+        shell: pwsh
+        id: get_commit
+        run: |
+          $COMMIT_SHA = git rev-parse HEAD
+          Write-Output "Commit SHA: $COMMIT_SHA"
+          "COMMIT_SHA=$COMMIT_SHA" | Out-File -FilePath $env:GITHUB_ENV -Append
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "COMMIT_SHA=$COMMIT_SHA"
       - name: Generate version
         shell: pwsh
         run: |
@@ -297,7 +329,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           tag: ${{ env.VERSION }}
-          commit: ${{ github.sha }}
+          commit: ${{ steps.get_commit.outputs.COMMIT_SHA }}
           name: "Release ${{ env.VERSION }} (Branch: ${{ github.ref_name }})"
           artifacts: |
             kptools-msys2-win.7z
@@ -311,6 +343,12 @@ jobs:
     steps:
       - name: Check out
         uses: actions/checkout@v4
+      - name: Get commit SHA
+        id: get_commit
+        run: |
+          COMMIT_SHA=$(git rev-parse HEAD)
+          echo "Commit SHA: $COMMIT_SHA"
+          echo "COMMIT_SHA=$COMMIT_SHA" >> $GITHUB_OUTPUT
       - name: Generate version
         id: parse_version
         run: |
@@ -340,7 +378,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           tag: ${{ steps.parse_version.outputs.VERSION }}
-          commit: ${{ github.sha }}
+          commit: ${{ steps.get_commit.outputs.COMMIT_SHA }}
           name: "Release ${{ steps.parse_version.outputs.VERSION }} (Branch: ${{ github.ref_name }})"
           artifacts: |
             tools/build/kptools-mac
