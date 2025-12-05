@@ -253,6 +253,8 @@ uint64_t sp_el0, sp;
 asm volatile("mrs %0, sp_el0" : "=r"(sp_el0));
 asm volatile("mov %0, sp" : "=r"(sp));
 
+init_task = (struct task_struct *)kallsyms_lookup_name("init_task");
+
     if (!struct_offsets_config) {
         logke("struct_offsets_config not initialized in resolve_current\n");
         return -1;

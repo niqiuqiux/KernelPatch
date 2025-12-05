@@ -73,10 +73,19 @@ typedef struct _setup_header_t // 64-bytes
 _Static_assert(sizeof(setup_header_t) == KP_HEADER_SIZE, "sizeof setup_header_t mismatch");
 
 #else
+/* Assembly offsets for setup_header_t (64 bytes total)
+ * Structure layout:
+ *   offset 0-7:   magic[8] (MAGIC_LEN)
+ *   offset 8-11:  kp_version (version_t, 4 bytes)
+ *   offset 12-15: _ (uint32_t, 4 bytes)
+ *   offset 16-23: config_flags (config_t = uint64_t, 8 bytes)
+ *   offset 24-47: compile_time[24] (COMPILE_TIME_LEN)
+ *   offset 48-63: padding/reserved
+ */
 #define header_magic_offset 0
-#define header_kp_version_offset (MAGIC_LEN)
-#define header_config_flags (header_kp_version_offset + 4 + 4)
-#define header_compile_time_offset (header_config_flags + 8)
+#define header_kp_version_offset (MAGIC_LEN)                              /* offset: 8 */
+#define header_config_flags_offset (header_kp_version_offset + 4 + 4)       /* offset: 16 */
+#define header_compile_time_offset (header_config_flags_offset + 8)          /* offset: 24 */
 #endif
 
 #ifndef __ASSEMBLY__
@@ -337,27 +346,53 @@ typedef struct _setup_preset_t
     char additional[ADDITIONAL_LEN];
 } setup_preset_t;
 #else
+/* Assembly offsets for setup_preset_t structure
+ * Structure layout (ARM64 alignment: 8-byte aligned):
+ *   offset 0-3:   kernel_version (version_t, 4 bytes)
+ *   offset 4-7:   _ (int32_t, 4 bytes)
+ *   offset 8-15:  kimg_size (int64_t, 8 bytes)
+ *   offset 16-23: kpimg_size (int64_t, 8 bytes)
+ *   offset 24-31: kernel_size (int64_t, 8 bytes)
+ *   offset 32-39: page_shift (int64_t, 8 bytes)
+ *   offset 40-47: setup_offset (int64_t, 8 bytes)
+ *   offset 48-55: start_offset (int64_t, 8 bytes)
+ *   offset 56-63: extra_size (int64_t, 8 bytes)
+ *   offset 64-71: map_offset (int64_t, 8 bytes)
+ *   offset 72-79: map_max_size (int64_t, 8 bytes)
+ *   offset 80-87: kallsyms_lookup_name_offset (int64_t, 8 bytes)
+ *   offset 88-95: paging_init_offset (int64_t, 8 bytes)
+ *   offset 96-103: printk_offset (int64_t, 8 bytes)
+ *   offset 104-143: map_symbol (map_symbol_t, MAP_SYMBOL_SIZE = 40 bytes)
+ *   offset 144-151: header_backup (uint8_t[HDR_BACKUP_SIZE], 8 bytes)
+ *   offset 152-215: superkey (uint8_t[SUPER_KEY_LEN], 64 bytes)
+ *   offset 216-247: root_superkey (uint8_t[ROOT_SUPER_KEY_HASH_LEN], 32 bytes)
+ *   offset 248-311: __ (uint8_t[SETUP_PRESERVE_LEN], 64 bytes)
+ *   offset 312-823: patch_config (patch_config_t, PATCH_CONFIG_LEN = 512 bytes)
+ *   offset 824-1335: struct_offsets (struct_offsets_t, STRUCT_OFFSETS_LEN = 512 bytes)
+ *   offset 1336-1847: additional (char[ADDITIONAL_LEN], 512 bytes)
+ *   Total size: 1848 bytes
+ */
 #define setup_kernel_version_offset 0
-#define setup_kimg_size_offset (setup_kernel_version_offset + 8)
-#define setup_kpimg_size_offset (setup_kimg_size_offset + 8)
-#define setup_kernel_size_offset (setup_kpimg_size_offset + 8)
-#define setup_page_shift_offset (setup_kernel_size_offset + 8)
-#define setup_setup_offset_offset (setup_page_shift_offset + 8)
-#define setup_start_offset_offset (setup_setup_offset_offset + 8)
-#define setup_extra_size_offset (setup_start_offset_offset + 8)
-#define setup_map_offset_offset (setup_extra_size_offset + 8)
-#define setup_map_max_size_offset (setup_map_offset_offset + 8)
-#define setup_kallsyms_lookup_name_offset_offset (setup_map_max_size_offset + 8)
-#define setup_paging_init_offset_offset (setup_kallsyms_lookup_name_offset_offset + 8)
-#define setup_printk_offset_offset (setup_paging_init_offset_offset + 8)
-#define setup_map_symbol_offset (setup_printk_offset_offset + 8)
-#define setup_header_backup_offset (setup_map_symbol_offset + MAP_SYMBOL_SIZE)
-#define setup_superkey_offset (setup_header_backup_offset + HDR_BACKUP_SIZE)
-#define setup_root_superkey_offset (setup_superkey_offset + SUPER_KEY_LEN)
-#define setup_patch_config_offset (setup_root_superkey_offset + ROOT_SUPER_KEY_HASH_LEN + SETUP_PRESERVE_LEN)
-#define setup_struct_offsets_offset (setup_patch_config_offset + PATCH_CONFIG_LEN)
-#define setup_additional_offset (setup_struct_offsets_offset + STRUCT_OFFSETS_LEN)
-#define setup_end (setup_additional_offset + ADDITIONAL_LEN)
+#define setup_kimg_size_offset (setup_kernel_version_offset + 8)          /* offset: 8 */
+#define setup_kpimg_size_offset (setup_kimg_size_offset + 8)              /* offset: 16 */
+#define setup_kernel_size_offset (setup_kpimg_size_offset + 8)             /* offset: 24 */
+#define setup_page_shift_offset (setup_kernel_size_offset + 8)             /* offset: 32 */
+#define setup_setup_offset_offset (setup_page_shift_offset + 8)             /* offset: 40 */
+#define setup_start_offset_offset (setup_setup_offset_offset + 8)           /* offset: 48 */
+#define setup_extra_size_offset (setup_start_offset_offset + 8)           /* offset: 56 */
+#define setup_map_offset_offset (setup_extra_size_offset + 8)              /* offset: 64 */
+#define setup_map_max_size_offset (setup_map_offset_offset + 8)            /* offset: 72 */
+#define setup_kallsyms_lookup_name_offset_offset (setup_map_max_size_offset + 8) /* offset: 80 */
+#define setup_paging_init_offset_offset (setup_kallsyms_lookup_name_offset_offset + 8) /* offset: 88 */
+#define setup_printk_offset_offset (setup_paging_init_offset_offset + 8)   /* offset: 96 */
+#define setup_map_symbol_offset (setup_printk_offset_offset + 8)           /* offset: 104 */
+#define setup_header_backup_offset (setup_map_symbol_offset + MAP_SYMBOL_SIZE) /* offset: 144 */
+#define setup_superkey_offset (setup_header_backup_offset + HDR_BACKUP_SIZE) /* offset: 152 */
+#define setup_root_superkey_offset (setup_superkey_offset + SUPER_KEY_LEN) /* offset: 216 */
+#define setup_patch_config_offset (setup_root_superkey_offset + ROOT_SUPER_KEY_HASH_LEN + SETUP_PRESERVE_LEN) /* offset: 312 */
+#define setup_struct_offsets_offset (setup_patch_config_offset + PATCH_CONFIG_LEN) /* offset: 824 */
+#define setup_additional_offset (setup_struct_offsets_offset + STRUCT_OFFSETS_LEN) /* offset: 1336 */
+#define setup_end (setup_additional_offset + ADDITIONAL_LEN)             /* offset: 1848 */
 #endif
 
 #ifndef __ASSEMBLY__

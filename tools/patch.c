@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <stddef.h>
 #include <assert.h>
 #include <string.h>
 #include <ctype.h>
@@ -408,6 +409,7 @@ static int extract_struct_offsets_from_btf(const char *kimg, int kimg_len, struc
             return -1;
         }
         offsets->task_struct_stack_offset = task_struct_members.offset;
+        tools_logi("task stack off 0x%02x\n",offsets->task_struct_stack_offset);
 
         if (btf_get_struct_outer_members(&btf, (uint32_t)task_type_id, "pid", &task_struct_members) != 0) {
             tools_loge("pid not found\n");
@@ -445,6 +447,7 @@ static int extract_struct_offsets_from_btf(const char *kimg, int kimg_len, struc
             return -1;
         }
         offsets->task_struct_cred_offset = task_struct_members.offset;
+        tools_logi("task cred off 0x%02x\n",offsets->task_struct_cred_offset);
 
         if (btf_get_struct_outer_members(&btf, (uint32_t)task_type_id, "fs", &task_struct_members) != 0) {
             tools_loge("fs not found\n");
@@ -475,12 +478,14 @@ static int extract_struct_offsets_from_btf(const char *kimg, int kimg_len, struc
             return -1;
         }
         offsets->task_struct_comm_offset = task_struct_members.offset;
+        tools_logi("task comm off 0x%02x\n",offsets->task_struct_comm_offset);
 
         if (btf_get_struct_outer_members(&btf, (uint32_t)task_type_id, "seccomp", &task_struct_members) != 0) {
             tools_loge("seccomp not found\n");
             return -1;
         }
         offsets->task_struct_seccomp_offset = task_struct_members.offset;
+        tools_logi("task seccomp off 0x%02x\n",offsets->task_struct_seccomp_offset);
 
         if (btf_get_struct_outer_members(&btf, (uint32_t)task_type_id, "security", &task_struct_members) != 0) {
             tools_loge("security not found\n");
@@ -537,12 +542,14 @@ static int extract_struct_offsets_from_btf(const char *kimg, int kimg_len, struc
             return -1;
         }
         offsets->cred_uid_offset = cred_members.offset;
+        tools_logi("cred uid off 0x%02x\n",offsets->cred_uid_offset);
 
         if (btf_get_struct_outer_members(&btf, (uint32_t)cred_type_id, "gid", &cred_members) != 0) {
             tools_loge("gid not found\n");
             return -1;
         }
         offsets->cred_gid_offset = cred_members.offset;
+        tools_logi("cred gid off 0x%02x\n",offsets->cred_gid_offset);
 
         if (btf_get_struct_outer_members(&btf, (uint32_t)cred_type_id, "suid", &cred_members) != 0) {
             tools_loge("suid not found\n");
@@ -597,6 +604,7 @@ static int extract_struct_offsets_from_btf(const char *kimg, int kimg_len, struc
             return -1;
         }
         offsets->cred_cap_permitted_offset = cred_members.offset;
+        tools_logi("cred cap_permitted off 0x%02x\n",offsets->cred_cap_permitted_offset);
 
         if (btf_get_struct_outer_members(&btf, (uint32_t)cred_type_id, "cap_effective", &cred_members) != 0) {
             tools_loge("cap_effective not found\n");
@@ -1040,11 +1048,11 @@ int patch_update_img(const char *kimg_path, const char *kpimg_path, const char *
     // 字节序转换（如果需要）
     if ((is_be() ^ kinfo->is_be)) {
         // struct_offsets中的所有int32_t字段需要字节序转换
-        // 但由于int32_t在大多数情况下不需要转换（除非跨不同字节序系统），这里暂时不转换
-        // 如果需要，可以添加转换逻辑
-
-        for (int64_t *pos = (int64_t *)&setup->struct_offsets; pos <= (int64_t *)&setup->struct_offsets; pos++) {
-            *pos = i64swp(*pos);
+        // 遍历struct_offsets_t中的所有int32_t字段进行字节序转换
+        int32_t *fields = (int32_t *)&setup->struct_offsets;
+        size_t field_count = STRUCT_OFFSETS_LEN / sizeof(int32_t);
+        for (size_t i = 0; i < field_count; i++) {
+            fields[i] = i32swp(fields[i]);
         }
     }
 

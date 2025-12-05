@@ -392,8 +392,10 @@ static void *memmem(const void *haystack, size_t haystack_len, const void *const
         }
     }
 type_parse_done:
- 
-     uint32_t expected_type_count = type_count;
+    /* label needs a statement; use empty statement to keep following declarations valid */
+    ;
+
+    uint32_t expected_type_count = type_count;
      *nr_types = type_count;
      if (type_count == 0) {
          *types = NULL;

@@ -3,7 +3,7 @@ ifndef TARGET_COMPILE
 endif
 # export ANDROID=1
 
-# TARGET_COMPILE=/home/ni/x86_64-aarch64-none-elf/bin/aarch64-none-elf-
+# export TARGET_COMPILE=/home/ni/x86_64-aarch64-none-elf/bin/aarch64-none-elf-
 
 TARGET=kpimg
 
