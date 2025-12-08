@@ -362,17 +362,25 @@ static void disable_pi_map(char *img, int32_t imglen)
 }
 
 /* 从BTF提取结构体偏移量 */
-static int extract_struct_offsets_from_btf(const char *kimg, int kimg_len, struct_offsets_t *offsets)
+static int extract_struct_offsets_from_btf(const char *kimg, int kimg_len, int32_t btf_offset, struct_offsets_t *offsets)
 {
     btf_t btf = { 0 };
 
     // 初始化所有偏移量为-1（表示未找到）
     memset(offsets, -1, sizeof(*offsets));
 
-    // 解析BTF
-    if (btf_parse(kimg, kimg_len, &btf) != 0) {
-        tools_loge("BTF not found or parse failed\n");
-        return -1;
+    // 优先使用已知的__start_BTF偏移，避免全量扫描
+    if (btf_offset >= 0) {
+        if (btf_parse_at(kimg, kimg_len, (uint32_t)btf_offset, &btf) != 0) {
+            tools_logw("btf parse at offset 0x%x failed, fallback to search\n", btf_offset);
+        }
+    }
+    if (!btf.hdr) {
+        // 解析BTF（回退到搜索）
+        if (btf_parse(kimg, kimg_len, &btf) != 0) {
+            tools_loge("BTF not found or parse failed\n");
+            return -1;
+        }
     }
 
     tools_logi("Extracting struct offsets from BTF...\n");
@@ -1040,8 +1048,10 @@ int patch_update_img(const char *kimg_path, const char *kpimg_path, const char *
     // start symbol
     fillin_patch_config(&kallsym, kallsym_kimg, ori_kimg_len, &setup->patch_config, kinfo->is_be, 0);
 
+    int __start_BTF = get_symbol_offset_exit(&kallsym, kallsym_kimg, "__start_BTF");
+    tools_logi("__start_BTF: 0x%x\n", __start_BTF);
     // 从BTF提取结构体偏移量
-    if (extract_struct_offsets_from_btf(kernel_file.kimg, kernel_file.kimg_len, &setup->struct_offsets) != 0) {
+    if (extract_struct_offsets_from_btf(kernel_file.kimg, kernel_file.kimg_len, __start_BTF, &setup->struct_offsets) != 0) {
         tools_loge_exit("Failed to extract struct offsets from BTF. BTF is required for this branch.\n");
     }
 

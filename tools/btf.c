@@ -39,6 +39,10 @@ static void *memmem(const void *haystack, size_t haystack_len, const void *const
 #endif
  
  #define BTF_ALIGN(x) align_ceil(x, 4)
+
+/* 前置声明，避免早期调用产生隐式声明 */
+static int parse_btf_header(const char *data, uint32_t data_size, struct btf_header **hdr, bool is_be);
+static int parse_btf_types(const btf_t *btf, const struct btf_type ***types, uint32_t *nr_types);
  
  /* 在kernel镜像中搜索BTF magic number */
  static const char *search_btf_magic(const char *img, int32_t imglen, uint32_t *btf_size, bool *is_be)
@@ -51,7 +55,10 @@ static void *memmem(const void *haystack, size_t haystack_len, const void *const
      const uint8_t magic_be_bytes[] = { 0xEB, 0x9F };
  
      /* 搜索BTF magic number */
-     for (int32_t offset = 0; offset < imglen - sizeof(struct btf_header); offset += 4) {
+    int32_t max_off = imglen - (int32_t)sizeof(struct btf_header);
+    if (max_off < 0) return NULL;
+
+    for (int32_t offset = 0; offset <= max_off; offset += 4) {
          /* 检查little-endian magic (9F EB) */
          if (memcmp(img + offset, magic_le_bytes, 2) == 0) {
              struct btf_header *hdr = (struct btf_header *)(img + offset);
@@ -105,7 +112,7 @@ static void *memmem(const void *haystack, size_t haystack_len, const void *const
      Elf64_Ehdr *ehdr = (Elf64_Ehdr *)img;
  
      /* 检查ELF magic */
-     if (imglen < sizeof(Elf64_Ehdr) || memcmp(ehdr->e_ident, ELFMAG, SELFMAG) != 0) {
+    if (imglen < (int32_t)sizeof(Elf64_Ehdr) || memcmp(ehdr->e_ident, ELFMAG, SELFMAG) != 0) {
          return -1;
      }
  
@@ -178,6 +185,96 @@ static void *memmem(const void *haystack, size_t haystack_len, const void *const
      tools_logw("BTF section not found in kernel image\n");
      return -1;
  }
+
+/* 校验指定偏移处的BTF块，并返回端序和总长度 */
+static int validate_btf_at_offset(const char *img, int32_t imglen, uint32_t btf_offset,
+                                  const char **btf_data, uint32_t *btf_size, bool *is_be)
+{
+    if (!img) {
+        tools_loge("invalid kernel image\n");
+        return -1;
+    }
+    if (btf_offset + sizeof(struct btf_header) > (uint32_t)imglen) {
+        tools_loge("btf offset 0x%x out of image range (size 0x%x)\n", btf_offset, imglen);
+        return -1;
+    }
+
+    const struct btf_header *hdr = (const struct btf_header *)(img + btf_offset);
+    uint16_t magic_le = u16le(hdr->magic);
+    uint16_t magic_be = u16be(hdr->magic);
+
+    if (magic_le == BTF_MAGIC) {
+        *is_be = false;
+    } else if (magic_be == BTF_MAGIC) {
+        *is_be = true;
+    } else {
+        tools_loge("btf magic mismatch at offset 0x%x\n", btf_offset);
+        return -1;
+    }
+
+    uint32_t hdr_len = *is_be ? u32be(hdr->hdr_len) : u32le(hdr->hdr_len);
+    uint32_t type_len = *is_be ? u32be(hdr->type_len) : u32le(hdr->type_len);
+    uint32_t str_len = *is_be ? u32be(hdr->str_len) : u32le(hdr->str_len);
+    uint32_t total_size = hdr_len + type_len + str_len;
+
+    if (hdr_len < sizeof(struct btf_header) || hdr_len > total_size) {
+        tools_loge("btf header len invalid: 0x%x\n", hdr_len);
+        return -1;
+    }
+    if (btf_offset + total_size > (uint32_t)imglen) {
+        tools_loge("btf size overflow: offset 0x%x size 0x%x img 0x%x\n", btf_offset, total_size, imglen);
+        return -1;
+    }
+
+    *btf_data = img + btf_offset;
+    *btf_size = total_size;
+    return 0;
+}
+
+/* 统一的数据解析入口 */
+static int btf_parse_from_data(const char *btf_data, uint32_t btf_size, bool is_be, btf_t *btf)
+{
+    btf->data = btf_data;
+    btf->data_size = btf_size;
+    btf->is_be = is_be;
+
+    if (parse_btf_header(btf_data, btf_size, &btf->hdr, is_be) != 0) {
+        return -1;
+    }
+
+    /* 根据字节序读取header字段 */
+    uint32_t hdr_len, type_off, str_off;
+    if (is_be) {
+        hdr_len = u32be(btf->hdr->hdr_len);
+        type_off = u32be(btf->hdr->type_off);
+        str_off = u32be(btf->hdr->str_off);
+    } else {
+        hdr_len = u32le(btf->hdr->hdr_len);
+        type_off = u32le(btf->hdr->type_off);
+        str_off = u32le(btf->hdr->str_off);
+    }
+
+    /* 验证字符串表偏移和大小 */
+    uint32_t str_len = is_be ? u32be(btf->hdr->str_len) : u32le(btf->hdr->str_len);
+    if (hdr_len + str_off + str_len > btf_size) {
+        tools_loge("string table extends beyond BTF data: hdr_len=%u, str_off=%u, str_len=%u, btf_size=%u\n",
+                   hdr_len, str_off, str_len, btf_size);
+        return -1;
+    }
+
+    btf->strings = btf_data + hdr_len + str_off;
+    if (str_len > 0 && btf->strings[0] != '\0') {
+        tools_logw("string table does not start with null character\n");
+    }
+
+    /* 解析类型表 */
+    if (parse_btf_types(btf, &btf->types, &btf->nr_types) != 0) {
+        return -1;
+    }
+
+    tools_logi("parsed BTF successfully\n");
+    return 0;
+}
  
  /* 解析BTF头部 - 根据字节序正确读取字段 */
  static int parse_btf_header(const char *data, uint32_t data_size, struct btf_header **hdr, bool is_be)
@@ -528,51 +625,26 @@ done:
      if (find_btf_section(img, imglen, &btf_data, &btf_size, &btf_is_be) != 0) {
          return -1;
      }
- 
-     btf->data = btf_data;
-     btf->data_size = btf_size;
-     btf->is_be = btf_is_be;
- 
-     /* 解析BTF头部 */
-     if (parse_btf_header(btf_data, btf_size, &btf->hdr, btf_is_be) != 0) {
-         return -1;
-     }
- 
-     /* 根据字节序读取header字段 */
-     uint32_t hdr_len, type_off, str_off;
-     if (btf_is_be) {
-         hdr_len = u32be(btf->hdr->hdr_len);
-         type_off = u32be(btf->hdr->type_off);
-         str_off = u32be(btf->hdr->str_off);
-     } else {
-         hdr_len = u32le(btf->hdr->hdr_len);
-         type_off = u32le(btf->hdr->type_off);
-         str_off = u32le(btf->hdr->str_off);
-     }
- 
-    /* 验证字符串表偏移和大小 */
-    uint32_t str_len = btf_is_be ? u32be(btf->hdr->str_len) : u32le(btf->hdr->str_len);
-    if (hdr_len + str_off + str_len > btf_size) {
-        tools_loge("string table extends beyond BTF data: hdr_len=%u, str_off=%u, str_len=%u, btf_size=%u\n",
-                   hdr_len, str_off, str_len, btf_size);
-        return -1;
-    }
-    
-    /* 设置字符串表 */
-    btf->strings = btf_data + hdr_len + str_off;
-    
-    /* 验证字符串表以null字符开始（BTF规范要求） */
-    if (str_len > 0 && btf->strings[0] != '\0') {
-        tools_logw("string table does not start with null character\n");
-    }
+    return btf_parse_from_data(btf_data, btf_size, btf_is_be, btf);
+}
 
-    /* 解析类型表 */
-    if (parse_btf_types(btf, &btf->types, &btf->nr_types) != 0) {
+/* 通过已知偏移解析BTF，避免遍历 */
+int32_t btf_parse_at(const char *img, int32_t imglen, uint32_t btf_offset, btf_t *btf)
+{
+    char *saved_allocated_data = btf->allocated_data;
+    memset(btf, 0, sizeof(btf_t));
+    btf->allocated_data = saved_allocated_data;
+
+    const char *btf_data = NULL;
+    uint32_t btf_size = 0;
+    bool btf_is_be = false;
+
+    if (validate_btf_at_offset(img, imglen, btf_offset, &btf_data, &btf_size, &btf_is_be) != 0) {
         return -1;
     }
 
-    tools_logi("parsed BTF successfully\n");
-    return 0;
+    tools_logi("using BTF at offset 0x%x, size 0x%x\n", btf_offset, btf_size);
+    return btf_parse_from_data(btf_data, btf_size, btf_is_be, btf);
 }
  
  /* 释放BTF资源 */

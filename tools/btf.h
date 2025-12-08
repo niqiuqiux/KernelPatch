@@ -263,6 +263,8 @@ typedef struct
 } btf_var_info_t;
  
  int32_t btf_parse(const char *img, int32_t imglen, btf_t *btf);
+/* 通过已知的BTF偏移解析，避免全量扫描 */
+int32_t btf_parse_at(const char *img, int32_t imglen, uint32_t btf_offset, btf_t *btf);
  void btf_free(btf_t *btf);
  
  const struct btf_type *btf_type_by_id(const btf_t *btf, uint32_t type_id);
