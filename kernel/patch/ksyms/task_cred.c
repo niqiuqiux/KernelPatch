@@ -26,6 +26,7 @@
 #include <asm/processor.h>
 #include <predata.h>
 
+#include "struct_hash.h"
 #define TASK_COMM_LEN 16
 
 
@@ -342,6 +343,8 @@ int resolve_struct()
 
     resolve_mm_struct_offset();
 
+    if ((err = resolve_struct_with_btf_hash())) goto out;
+    btf_dump_struct_hash();
 out:
     return err;
 }
