@@ -42,8 +42,8 @@
      *btf_data = (const char *)start_addr;
      *btf_size = (uint32_t)(stop_addr - start_addr);
  
-     logki("found BTF in kernel vaddr: start=0x%lx, stop=0x%lx, size=0x%x\n", 
-           start_addr, stop_addr, *btf_size);
+    log_boot("found BTF in kernel vaddr: start=0x%lx, stop=0x%lx, size=0x%x\n", 
+          start_addr, stop_addr, *btf_size);
  
      return 0;
  }
@@ -80,7 +80,7 @@
          return -1;
      }
  
-     logki("parsed BTF successfully\n");
+     log_boot("parsed BTF successfully\n");
      return 0;
  }
   
@@ -120,7 +120,7 @@
           return -1;
       }
   
-      logki("BTF header: magic=0x%04x, version=%d, type_len=%u, str_len=%u\n", 
+      log_boot("BTF header: magic=0x%04x, version=%d, type_len=%u, str_len=%u\n", 
                  magic, version, type_len, str_len);
   
       return 0;
@@ -129,6 +129,11 @@
   /* 解析BTF类型表 */
   static int parse_btf_types(const btf_t *btf, const struct btf_type ***types, uint32_t *nr_types)
   {
+      if (!btf || !btf->hdr || !btf->data) {
+          logke("parse_btf_types: invalid btf or hdr\n");
+          return -1;
+      }
+      
       const struct btf_header *hdr = btf->hdr;
       
       /* 直接读取header字段 */
@@ -140,7 +145,7 @@
       uint32_t type_count = 0;
       uint32_t offset = 0;
   
-      logki("parsing BTF types: hdr_len=%u, type_off=%u, type_len=%u\n", hdr_len, type_off, type_len);
+      log_boot("parsing BTF types: hdr_len=%u, type_off=%u, type_len=%u\n", hdr_len, type_off, type_len);
   
      /* 第一遍：计算类型数量 */
      while (offset < type_len) {
@@ -149,7 +154,7 @@
              /* 如果剩余字节不足以读取完整结构，说明类型表已结束 */
              /* 这可能是正常的，因为类型表可能不是完全对齐的 */
              if (type_len - offset > 0) {
-                 logki("type table ends with %u trailing bytes at offset %u\n", type_len - offset, offset);
+                 log_boot("type table ends with %u trailing bytes at offset %u\n", type_len - offset, offset);
              }
              break;
          }
@@ -165,7 +170,7 @@
           /* 调试：打印前几个类型的信息 */
           if (type_count < 5) {
               uint32_t name_off = t->name_off;
-              logki("type[%u]: kind=%u, vlen=%u, name_off=%u, offset=%u\n", 
+              log_boot("type[%u]: kind=%u, vlen=%u, name_off=%u, offset=%u\n", 
                          type_count, kind, vlen, name_off, offset);
           }
   
@@ -308,8 +313,14 @@
           uint32_t vlen = BTF_INFO_VLEN(info);
   
           /* kind == 0 是void类型，仍然是有效类型 */
-          (*types)[++type_count] = t; /* 类型ID从1开始 */
-  
+          type_count++;
+          /* 检查数组越界 */
+          if (type_count > expected_type_count) {
+              logke("type_count %u exceeds expected %u, possible array overflow\n", type_count, expected_type_count);
+              break;
+          }
+          (*types)[type_count] = t; /* 类型ID从1开始 */
+
           offset += sizeof(struct btf_type);
   
           /* 根据类型添加额外数据大小 */
@@ -385,7 +396,7 @@
           *nr_types = type_count;
       }
       
-      logki("parsed %u BTF types (validated %u types in second pass)\n", *nr_types, type_count);
+      log_boot("parsed %u BTF types (validated %u types in second pass)\n", *nr_types, type_count);
       return 0;
   }
   
@@ -561,34 +572,42 @@
      return -1;
  }
  
- /* 跳过 typedef/const/volatile/restrict，获取真实结构/联合类型 ID；若遇到指针返回 false */
- static bool resolve_struct_or_union_type_id(const btf_t *btf, uint32_t type_id, uint32_t *resolved_id)
- {
-     while (1) {
-         const struct btf_type *t = btf_type_by_id(btf, type_id);
-         if (!t)
-             return false;
- 
-         uint32_t kind = BTF_INFO_KIND(t->info);
-         switch (kind) {
-         case BTF_KIND_TYPEDEF:
-         case BTF_KIND_VOLATILE:
-         case BTF_KIND_CONST:
-         case BTF_KIND_RESTRICT:
-             type_id = *(uint32_t *)(t + 1);
-             continue;
-         case BTF_KIND_PTR:
-             return false;
-         case BTF_KIND_STRUCT:
-         case BTF_KIND_UNION:
-             if (resolved_id)
-                 *resolved_id = type_id;
-             return true;
-         default:
-             return false;
-         }
-     }
- }
+/* 跳过 typedef/const/volatile/restrict，获取真实结构/联合类型 ID；若遇到指针返回 false */
+static bool resolve_struct_or_union_type_id(const btf_t *btf, uint32_t type_id, uint32_t *resolved_id)
+{
+    uint32_t depth = 0;
+    const uint32_t MAX_DEPTH = 6; /* 防止循环引用导致的无限循环 */
+
+    while (depth < MAX_DEPTH) {
+        const struct btf_type *t = btf_type_by_id(btf, type_id);
+        if (!t)
+            return false;
+
+        uint32_t kind = BTF_INFO_KIND(t->info);
+        switch (kind) {
+        case BTF_KIND_TYPEDEF:
+        case BTF_KIND_VOLATILE:
+        case BTF_KIND_CONST:
+        case BTF_KIND_RESTRICT:
+            type_id = *(uint32_t *)(t + 1);
+            depth++;
+            continue;
+        case BTF_KIND_PTR:
+            return false;
+        case BTF_KIND_STRUCT:
+        case BTF_KIND_UNION:
+            if (resolved_id)
+                *resolved_id = type_id;
+            return true;
+        default:
+            return false;
+        }
+    }
+
+    /* 超过最大深度，可能存在循环引用 */
+    logkw("resolve_struct_or_union_type_id: exceeded max depth %u\n", MAX_DEPTH);
+    return false;
+}
  
  /* 递归解析得到可用的 STRUCT/UNION 完整定义（处理 TYPEDEF/FWD/不完整定义），失败返回 -1 */
  static int32_t btf_find_complete_struct_id(const btf_t *btf, uint32_t type_id, int depth)
@@ -744,27 +763,27 @@
          if (vlen_cap > 4096)
              vlen_cap = 4096;
  
-        //members = kcalloc(vlen_cap, sizeof(*members), GFP_KERNEL);
+         //members = kcalloc(vlen_cap, sizeof(*members), GFP_KERNEL);
         members = vmalloc(vlen_cap * sizeof(*members));
-        lib_memset(members, 0, vlen_cap * sizeof(*members));
-        if (!members)
-            return -1;
-
-        count = btf_get_struct_members(btf, struct_type_id, members, vlen_cap);
-        if (count <= 0) {
+         lib_memset(members, 0, vlen_cap * sizeof(*members));
+         if (!members)
+             return -1;
+ 
+         count = btf_get_struct_members(btf, struct_type_id, members, vlen_cap);
+         if (count <= 0) {
             vfree(members);
-            return -1;
-        }
+             return -1;
+         }
      }
  
-    for (int32_t i = 0; i < count; i++) {
-        const char *name = members[i].name;
-        if (name && lib_strcmp(name, member_name) == 0) {
-            *out = members[i];
+     for (int32_t i = 0; i < count; i++) {
+         const char *name = members[i].name;
+         if (name && lib_strcmp(name, member_name) == 0) {
+             *out = members[i];
             vfree(members);
-            return 0;
-        }
-    }
+             return 0;
+         }
+     }
  
      /* 未命中：尝试在匿名 struct/union 成员中继续一层搜索 */
      for (int32_t i = 0; i < count; i++) {
@@ -785,32 +804,32 @@
          if (nested_cap > 4096)
              nested_cap = 4096;
  
-        //btf_member_info_t *nested = kcalloc(nested_cap, sizeof(*nested), GFP_KERNEL);
+         //btf_member_info_t *nested = kcalloc(nested_cap, sizeof(*nested), GFP_KERNEL);
         btf_member_info_t *nested = vmalloc(nested_cap * sizeof(*nested));
-        lib_memset(nested, 0, nested_cap * sizeof(*nested));
-        if (!nested)
-            continue;
-
-        int32_t nested_cnt = btf_get_struct_members(btf, nested_type_id, nested, nested_cap);
-        if (nested_cnt > 0) {
-            for (int32_t j = 0; j < nested_cnt; j++) {
-                const char *n = nested[j].name;
-                if (!n)
-                    continue;
-                if (lib_strcmp(n, member_name) != 0)
-                    continue;
-
-                *out = nested[j];
-                out->offset += members[i].offset; /* 累加父级偏移 */
+         lib_memset(nested, 0, nested_cap * sizeof(*nested));
+         if (!nested)
+             continue;
+ 
+         int32_t nested_cnt = btf_get_struct_members(btf, nested_type_id, nested, nested_cap);
+         if (nested_cnt > 0) {
+             for (int32_t j = 0; j < nested_cnt; j++) {
+                 const char *n = nested[j].name;
+                 if (!n)
+                     continue;
+                 if (lib_strcmp(n, member_name) != 0)
+                     continue;
+ 
+                 *out = nested[j];
+                 out->offset += members[i].offset; /* 累加父级偏移 */
                 vfree(nested);
                 vfree(members);
-                return 0;
-            }
-        }
-
+                 return 0;
+             }
+         }
+ 
         vfree(nested);
-    }
-
+     }
+ 
     vfree(members);
      return -1;
  }
@@ -835,32 +854,40 @@
      return btf_find_struct_member_by_type_id(btf, (uint32_t)type_id, member_name, out);
  }
  
- /* 工具函数：根据当前类型 ID，解析去掉 TYPEDEF/CONST/VOLATILE
-  * 等修饰符后的实际类型 ID */
- static uint32_t btf_resolve_real_type_id(const btf_t *btf, uint32_t type_id) {
-   while (1) {
-     const struct btf_type *t = btf_type_by_id(btf, type_id);
-     if (!t)
-       break;
- 
-     uint32_t kind = BTF_INFO_KIND(t->info);
-     if (kind == BTF_KIND_TYPEDEF || kind == BTF_KIND_VOLATILE ||
-         kind == BTF_KIND_CONST || kind == BTF_KIND_RESTRICT) {
-       /* 这些类型后面紧跟着一个 u32，表示真正的 type_id */
-       uint32_t *type_ptr = (uint32_t *)(t + 1);
-       uint32_t raw = *type_ptr;
-       uint32_t next_id = raw;
-       if (next_id == 0 || next_id == type_id)
-         break;
-       type_id = next_id;
-       continue;
-     }
- 
-     break;
-   }
- 
-   return type_id;
- }
+/* 工具函数：根据当前类型 ID，解析去掉 TYPEDEF/CONST/VOLATILE
+ * 等修饰符后的实际类型 ID */
+static uint32_t btf_resolve_real_type_id(const btf_t *btf, uint32_t type_id) {
+  uint32_t depth = 0;
+  const uint32_t MAX_DEPTH = 6; /* 防止循环引用导致的无限循环 */
+
+  while (depth < MAX_DEPTH) {
+    const struct btf_type *t = btf_type_by_id(btf, type_id);
+    if (!t)
+      break;
+
+    uint32_t kind = BTF_INFO_KIND(t->info);
+    if (kind == BTF_KIND_TYPEDEF || kind == BTF_KIND_VOLATILE ||
+        kind == BTF_KIND_CONST || kind == BTF_KIND_RESTRICT) {
+      /* 这些类型后面紧跟着一个 u32，表示真正的 type_id */
+      uint32_t *type_ptr = (uint32_t *)(t + 1);
+      uint32_t raw = *type_ptr;
+      uint32_t next_id = raw;
+      if (next_id == 0 || next_id == type_id)
+        break;
+      type_id = next_id;
+      depth++;
+      continue;
+    }
+
+    break;
+  }
+
+  if (depth >= MAX_DEPTH) {
+    logkw("btf_resolve_real_type_id: exceeded max depth %u\n", MAX_DEPTH);
+  }
+
+  return type_id;
+}
  
  /* 按 type_id + 路径（形如 "a.b.c"）解析嵌套成员最终 offset/type */
  int32_t btf_resolve_member_path_by_type_id(const btf_t *btf,

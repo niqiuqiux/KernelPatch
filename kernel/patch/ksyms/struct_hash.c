@@ -27,7 +27,7 @@
 DEFINE_HASHTABLE(struct_member_hash, STRUCT_MEMBER_HASH_BITS);
 static bool struct_member_hash_initialized = false;
 static btf_t g_btf;
-static bool g_btf_initialized;
+static bool g_btf_initialized = false;
 
 /* 确保全局 BTF 只解析一次 */
 static int ensure_btf_ready(void)
@@ -91,6 +91,10 @@ uint32_t member_hash_key(const char *struct_name, const char *member_name)
 /* 查找哈希表条目 */
 struct struct_member_entry *find_member_entry(const char *struct_name, const char *member_name)
 {
+    if (!struct_name || !member_name) {
+        return NULL;
+    }
+
     uint32_t key = member_hash_key(struct_name, member_name);
     struct struct_member_entry *entry;
 
@@ -236,7 +240,10 @@ void add_nested_members(const btf_t *btf, const char *struct_name, const btf_mem
 
     btf_member_info_t *nested = NULL;
     int32_t nested_cnt = alloc_struct_members(btf, nested_type_id, &nested, NULL);
-    if (nested_cnt <= 0) return;
+    if (nested_cnt <= 0 || !nested) {
+        /* alloc_struct_members 失败时会自动释放内存并设置 nested = NULL */
+        return;
+    }
 
     const char *parent_name = parent_member->name;
     const char *fallback_parent = btf_type_name_by_id(btf, nested_type_id);
@@ -329,12 +336,12 @@ __noinline int parse_struct_with_btf(const btf_t *btf, const char *struct_name)
     /* 获取结构体成员 */
     btf_member_info_t *members = NULL;
     int32_t member_count = alloc_struct_members(btf, (uint32_t)type_id, &members, NULL);
-    if (member_count <= 0) {
+    if (member_count <= 0 || !members) {
         logkw("Struct '%s' has no members or failed to get members\n", struct_name);
         return -1;
     }
 
-    logki("Parsing struct '%s' (%d members)\n", struct_name, member_count);
+    log_boot("Parsing struct '%s' (%d members)\n", struct_name, member_count);
 
     /* 将每个成员添加到哈希表 */
     for (int32_t i = 0; i < member_count; i++) {
@@ -373,10 +380,13 @@ int resolve_struct_with_btf_hash(void)
 {
     int ret = 0;
 
-    logkd("Resolving struct offsets using BTF hash table\n");
+    log_boot("Resolving struct offsets using BTF hash table\n");
 
     /* 初始化 BTF 和哈希表 */
-    if (ensure_btf_ready() != 0) return -1;
+    if (ensure_btf_ready() != 0) {
+        logke("Failed to initialize BTF\n");
+        return -1;
+    }
 
     ensure_hash_ready();
 
@@ -388,9 +398,12 @@ int resolve_struct_with_btf_hash(void)
 
     };
 
-    if (btf_add_structs_to_hash(structs_to_parse, ARRAY_SIZE(structs_to_parse)) != 0) ret = -1;
+    if (btf_add_structs_to_hash(structs_to_parse, ARRAY_SIZE(structs_to_parse)) != 0) {
+        logkw("Some structs failed to parse\n");
+        ret = -1;
+    }
 
-    logkd("BTF hash table initialized\n");
+    log_boot("BTF hash table initialized\n");
     return ret;
 }
 
@@ -456,10 +469,10 @@ void btf_dump_struct_hash(void)
 
     struct struct_member_entry *entry;
     int bkt;
-    logki("Dumping struct member hash table:\n");
+    log_boot("Dumping struct member hash table:\n");
     hash_for_each(struct_member_hash, bkt, entry, node)
     {
-        logki("  %s.%s => offset=0x%x type_id=%u\n", entry->struct_name, entry->member_name, entry->offset,
+        log_boot("  %s.%s => offset=0x%x type_id=%u\n", entry->struct_name, entry->member_name, entry->offset,
               entry->type_id);
     }
 }
