@@ -56,36 +56,17 @@ static inline void ensure_hash_ready(void)
 uint32_t member_hash_key(const char *struct_name, const char *member_name)
 {
     char key[192];
-    size_t struct_len = strlen(struct_name);
-    size_t member_len = strlen(member_name);
-    size_t total_len = struct_len + 1 + member_len; /* struct_name + '.' + member_name */
+    int n;
 
-    /* 如果字符串太长，截断并使用截断后的字符串计算哈希，避免返回 0 导致哈希冲突 */
-    if (total_len >= sizeof(key)) {
-        /* 截断到最大长度，确保有空间存储 '\0' */
-        size_t max_struct = sizeof(key) - 1;
-        size_t max_member = 0;
-        if (struct_len < max_struct) {
-            max_member = sizeof(key) - struct_len - 2; /* -2 for '.' and '\0' */
-        }
-        
-        strncpy(key, struct_name, max_struct);
-        key[max_struct] = '\0';
-        if (max_member > 0 && member_len > 0) {
-            size_t struct_actual = strlen(key);
-            key[struct_actual] = '.';
-            strncpy(key + struct_actual + 1, member_name, max_member);
-            key[struct_actual + 1 + max_member] = '\0';
-        }
-        total_len = strlen(key);
-    } else {
-        strncpy(key, struct_name, sizeof(key) - 1);
-        key[struct_len] = '.';
-        strncpy(key + struct_len + 1, member_name, sizeof(key) - struct_len - 1);
-        key[total_len] = '\0';
+    /* 使用snprintf安全地拼接字符串，自动处理截断和null终止 */
+    n = snprintf(key, sizeof(key), "%s.%s", struct_name, member_name);
+    if (n < 0 || n >= (int)sizeof(key)) {
+        /* 如果字符串被截断或出错，使用截断后的字符串计算哈希 */
+        key[sizeof(key) - 1] = '\0';
+        n = sizeof(key) - 1;
     }
 
-    return jhash(key, total_len, JHASH_INITVAL);
+    return jhash(key, (u32)n, JHASH_INITVAL);
 }
 
 /* 查找哈希表条目 */
@@ -388,22 +369,21 @@ int resolve_struct_with_btf_hash(void)
         return -1;
     }
 
-    // ensure_hash_ready();
+    ensure_hash_ready();
 
-    // /* 解析主要结构体 */
-    // const char *structs_to_parse[] = {
-    //     "task_struct", "mm_struct", "cred", "mount", "vm_area_struct", "file",
-    //     "inode",       "dentry",    "path", "page",  "super_block",    "input_dev",
-    //     "selinux_policy","policydb"
+    /* 解析主要结构体 */
+    const char *structs_to_parse[] = {
+        "task_struct", "mm_struct", "cred", "mount", "vm_area_struct", "file",
+        "inode",       "dentry",    "path", "page",  "super_block",    "input_dev"
 
-    // };
+    };
 
-    // if (btf_add_structs_to_hash(structs_to_parse, ARRAY_SIZE(structs_to_parse)) != 0) {
-    //     logkw("Some structs failed to parse\n");
-    //     ret = -1;
-    // }
+    if (btf_add_structs_to_hash(structs_to_parse, ARRAY_SIZE(structs_to_parse)) != 0) {
+        logkw("Some structs failed to parse\n");
+        ret = -1;
+    }
 
-    // log_boot("BTF hash table initialized\n");
+    log_boot("BTF hash table initialized\n");
     return ret;
 }
 
