@@ -343,11 +343,11 @@ int resolve_struct()
 
     resolve_mm_struct_offset();
 
-    if (resolve_struct_with_btf_hash() != 0) {
-        logke("resolve_struct_with_btf_hash failed\n");
-        goto out;
-    }
-    btf_dump_struct_hash();
+    // if (resolve_struct_with_btf_hash() != 0) {
+    //     logke("resolve_struct_with_btf_hash failed\n");
+    //     goto out;
+    // }
+    // btf_dump_struct_hash();
 out:
     return err;
 }
