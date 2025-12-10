@@ -62,17 +62,20 @@
     uint32_t type_off = btf->hdr->type_off;
     uint32_t str_off = btf->hdr->str_off;
  
-    /* 验证偏移和大小：type/str 偏移均相对于 BTF 起始 */
+    /* 验证偏移和大小：type_off/str_off 均相对 BTF header 起始 */
     uint32_t type_len = btf->hdr->type_len;
     uint32_t str_len = btf->hdr->str_len;
-    if (type_off < hdr_len || str_off < hdr_len ||
-        type_off + type_len > btf_size || str_off + str_len > btf_size) {
+    if (hdr_len + type_off + type_len > btf_size || hdr_len + str_off + str_len > btf_size) {
         logke("btf offsets out of range: hdr_len=%u type_off=%u type_len=%u str_off=%u str_len=%u size=%u\n",
               hdr_len, type_off, type_len, str_off, str_len, btf_size);
         return -1;
     }
+    if (str_off < type_off + type_len) {
+        logkw("btf string section overlaps type section: type_end=%u str_off=%u\n",
+              type_off + type_len, str_off);
+    }
 
-    btf->strings = btf_data + str_off;
+    btf->strings = btf_data + hdr_len + str_off;
      if (str_len > 0 && btf->strings[0] != '\0') {
          logkw("string table does not start with null character\n");
      }
@@ -143,7 +146,7 @@
       uint32_t type_off = hdr->type_off;
       uint32_t type_len = hdr->type_len;
       
-      const char *type_data = btf->data + type_off;
+      const char *type_data = btf->data + hdr_len + type_off;
       uint32_t type_count = 0;
       uint32_t offset = 0;
   
