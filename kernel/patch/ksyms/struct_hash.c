@@ -1,4 +1,5 @@
 
+#include "baselib.h"
 #include "symbol.h"
 #include <linux/kernel.h>
 
@@ -117,11 +118,10 @@ int add_member_to_hash(const char *struct_name, const char *member_name, uint32_
         return -1;
     }
 
-    memset(entry, 0, sizeof(*entry));
-    strncpy(entry->struct_name, struct_name, sizeof(entry->struct_name) - 1);
-    entry->struct_name[sizeof(entry->struct_name) - 1] = '\0';
-    strncpy(entry->member_name, member_name, sizeof(entry->member_name) - 1);
-    entry->member_name[sizeof(entry->member_name) - 1] = '\0';
+    lib_memset(entry, 0, sizeof(*entry));
+    /* 使用snprintf安全地复制字符串，自动处理null终止 */
+    snprintf(entry->struct_name, sizeof(entry->struct_name), "%s", struct_name);
+    snprintf(entry->member_name, sizeof(entry->member_name), "%s", member_name);
     entry->offset = offset;
     entry->type_id = type_id;
 
@@ -162,7 +162,7 @@ int32_t alloc_struct_members(const btf_t *btf, uint32_t type_id, btf_member_info
         *out_members = NULL;
         return -1;
     }
-    memset(buf, 0, cap * sizeof(*buf));
+    lib_memset(buf, 0, cap * sizeof(*buf));
 
     int32_t count = btf_get_struct_members(btf, type_id, buf, cap);
     if (count <= 0) {
@@ -286,15 +286,27 @@ KP_EXPORT_SYMBOL(btf_add_struct_to_hash);
 int btf_add_structs_to_hash(const char *const *struct_names, size_t count)
 {
     int ret = 0;
+    int success_count = 0;
+    int fail_count = 0;
 
-    if (!struct_names || count == 0) return -1;
+    if (!struct_names) return -1;
+    if (count == 0) return 0; /* 空列表不是错误 */
 
     for (size_t i = 0; i < count; i++) {
         const char *name = struct_names[i];
 
         if (!name || !name[0]) continue;
 
-        if (btf_add_struct_to_hash(name) != 0) ret = -1;
+        if (btf_add_struct_to_hash(name) != 0) {
+            ret = -1;
+            fail_count++;
+        } else {
+            success_count++;
+        }
+    }
+
+    if (fail_count > 0) {
+        logkw("btf_add_structs_to_hash: %d succeeded, %d failed\n", success_count, fail_count);
     }
 
     return ret;
