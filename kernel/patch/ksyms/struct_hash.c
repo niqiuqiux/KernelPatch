@@ -388,22 +388,22 @@ int resolve_struct_with_btf_hash(void)
         return -1;
     }
 
-    ensure_hash_ready();
+    // ensure_hash_ready();
 
-    /* 解析主要结构体 */
-    const char *structs_to_parse[] = {
-        "task_struct", "mm_struct", "cred", "mount", "vm_area_struct", "file",
-        "inode",       "dentry",    "path", "page",  "super_block",    "input_dev",
-        "selinux_policy","policydb"
+    // /* 解析主要结构体 */
+    // const char *structs_to_parse[] = {
+    //     "task_struct", "mm_struct", "cred", "mount", "vm_area_struct", "file",
+    //     "inode",       "dentry",    "path", "page",  "super_block",    "input_dev",
+    //     "selinux_policy","policydb"
 
-    };
+    // };
 
-    if (btf_add_structs_to_hash(structs_to_parse, ARRAY_SIZE(structs_to_parse)) != 0) {
-        logkw("Some structs failed to parse\n");
-        ret = -1;
-    }
+    // if (btf_add_structs_to_hash(structs_to_parse, ARRAY_SIZE(structs_to_parse)) != 0) {
+    //     logkw("Some structs failed to parse\n");
+    //     ret = -1;
+    // }
 
-    log_boot("BTF hash table initialized\n");
+    // log_boot("BTF hash table initialized\n");
     return ret;
 }
 
