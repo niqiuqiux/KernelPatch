@@ -65,7 +65,8 @@
     /* 验证偏移和大小：type_off/str_off 均相对 BTF header 起始 */
     uint32_t type_len = btf->hdr->type_len;
     uint32_t str_len = btf->hdr->str_len;
-    if (hdr_len + type_off + type_len > btf_size || hdr_len + str_off + str_len > btf_size) {
+    /* 内核规范：type_off/str_off 相对 hdr 末尾；参考 kernel/btf.c 计算方式 */
+    if (type_off + type_len > btf_size - hdr_len || str_off + str_len > btf_size - hdr_len) {
         logke("btf offsets out of range: hdr_len=%u type_off=%u type_len=%u str_off=%u str_len=%u size=%u\n",
               hdr_len, type_off, type_len, str_off, str_len, btf_size);
         return -1;
@@ -75,7 +76,8 @@
               type_off + type_len, str_off);
     }
 
-    btf->strings = btf_data + hdr_len + str_off;
+    const char *data_after_hdr = btf_data + hdr_len;
+    btf->strings = data_after_hdr + str_off;
      if (str_len > 0 && btf->strings[0] != '\0') {
          logkw("string table does not start with null character\n");
      }
@@ -146,7 +148,8 @@
       uint32_t type_off = hdr->type_off;
       uint32_t type_len = hdr->type_len;
       
-      const char *type_data = btf->data + hdr_len + type_off;
+      const char *data_after_hdr = btf->data + hdr_len;
+      const char *type_data = data_after_hdr + type_off;
       uint32_t type_count = 0;
       uint32_t offset = 0;
   
