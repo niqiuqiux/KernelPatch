@@ -218,17 +218,33 @@ bool resolve_struct_or_union_type_id(const btf_t *btf, uint32_t type_id, uint32_
 }
 
 /* 解析一层嵌套结构体成员（member_name.nested），并写入哈希表 */
+/* 添加静态深度计数器，防止无限递归 */
+/* 注意：在启动阶段是单线程的，所以使用静态变量是安全的 */
+static int nested_depth = 0;
+#define MAX_NESTED_DEPTH 2  /* 只解析两层嵌套，避免消耗过多内存和导致系统崩溃 */
+
 void add_nested_members(const btf_t *btf, const char *struct_name, const btf_member_info_t *parent_member)
 {
     if (!parent_member) return;
 
+    /* 限制嵌套深度，防止无限递归和内存耗尽 */
+    if (nested_depth >= MAX_NESTED_DEPTH) {
+        return;
+    }
+
+    nested_depth++;
+
     uint32_t nested_type_id;
-    if (!resolve_struct_or_union_type_id(btf, parent_member->type_id, &nested_type_id)) return;
+    if (!resolve_struct_or_union_type_id(btf, parent_member->type_id, &nested_type_id)) {
+        nested_depth--;
+        return;
+    }
 
     btf_member_info_t *nested = NULL;
     int32_t nested_cnt = alloc_struct_members(btf, nested_type_id, &nested, NULL);
     if (nested_cnt <= 0 || !nested) {
         /* alloc_struct_members 失败时会自动释放内存并设置 nested = NULL */
+        nested_depth--;
         return;
     }
 
@@ -271,6 +287,7 @@ void add_nested_members(const btf_t *btf, const char *struct_name, const btf_mem
               struct_name, full_name, combined_offset, nested[j].type_id);
     }
     vfree(nested);
+    nested_depth--;
 }
 
 /* 供外部调用：将指定结构体的成员添加到哈希表 */
@@ -283,7 +300,7 @@ int btf_add_struct_to_hash(const char *struct_name)
 
     if (ensure_btf_ready() != 0) return -1;
 
-    //ensure_hash_ready();
+    ensure_hash_ready();
     return parse_struct_with_btf(&g_btf, struct_name);
 }
 KP_EXPORT_SYMBOL(btf_add_struct_to_hash);
@@ -322,6 +339,9 @@ KP_EXPORT_SYMBOL(btf_add_structs_to_hash);
 /* 使用 BTF 解析结构体并填充哈希表 */
 __noinline int parse_struct_with_btf(const btf_t *btf, const char *struct_name)
 {
+    /* 重置嵌套深度计数器，确保每次解析结构体时从0开始 */
+    nested_depth = 0;
+
     int32_t type_id = btf_find_by_name_kind(btf, struct_name, BTF_KIND_STRUCT);
     if (type_id < 0) {
         /* 尝试查找 TYPEDEF */
@@ -347,21 +367,29 @@ __noinline int parse_struct_with_btf(const btf_t *btf, const char *struct_name)
     log_boot("Parsing struct '%s' (%d members)\n", struct_name, member_count);
 
     /* 将每个成员添加到哈希表 */
-    for (int32_t i = 0; i < member_count; i++) {
+    /* 限制处理的成员数量，避免在启动早期消耗过多时间和内存 */
+    int32_t max_members_to_process = member_count;
+    if (max_members_to_process > 512) {
+        logkw("Struct '%s' has too many members (%d), limiting to 512 for boot safety\n", struct_name, member_count);
+        max_members_to_process = 512;
+    }
+
+    for (int32_t i = 0; i < max_members_to_process; i++) {
         const char *member_name = members[i].name ? members[i].name : "anon";
 
         uint32_t offset = members[i].offset;
         uint32_t member_type_id = members[i].type_id;
 
-        // if (add_member_to_hash(struct_name, member_name, offset, member_type_id) != 0) {
-        //     logke("Failed to add member '%s.%s' to hash table\n", struct_name, member_name);
-        //     continue;
-        // }
+        if (add_member_to_hash(struct_name, member_name, offset, member_type_id) != 0) {
+            logke("Failed to add member '%s.%s' to hash table\n", struct_name, member_name);
+            continue;
+        }
 
         logki("  Added: %s.%s offset=0x%x type_id=%u\n",
               struct_name, member_name, offset, member_type_id);
 
-        /* 支持二级结构体：对嵌套的 struct/union 再解析一层 */
+        /* 支持二级结构体：对嵌套的 struct/union 再解析一层
+         * 注意：嵌套解析已限制深度，避免消耗过多内存 */
         add_nested_members(btf, struct_name, &members[i]);
     }
 
@@ -391,18 +419,30 @@ int resolve_struct_with_btf_hash(void)
         return -1;
     }
 
-    // ensure_hash_ready();
+    ensure_hash_ready();
 
-    /* 解析主要结构体 */
-    const char *structs_to_parse[] = {
-        "task_struct", "mm_struct", "cred", "mount", "vm_area_struct", "file",
-        "inode",       "dentry",    "path", "page",  "super_block",    "input_dev"
-
+    /* 在启动早期，只解析最关键的结构体，避免系统无法启动
+     * 其他结构体可以在系统启动后再解析 */
+    const char *critical_structs[] = {
+        "task_struct", "cred", "mm_struct"
     };
 
-    if (btf_add_structs_to_hash(structs_to_parse, ARRAY_SIZE(structs_to_parse)) != 0) {
-        logkw("Some structs failed to parse\n");
+    /* 先解析关键结构体 */
+    if (btf_add_structs_to_hash(critical_structs, ARRAY_SIZE(critical_structs)) != 0) {
+        logkw("Some critical structs failed to parse\n");
         ret = -1;
+    }
+
+    /* 如果关键结构体解析成功，再解析其他结构体（可选） */
+    if (ret == 0) {
+        /* 延迟解析非关键结构体，避免启动时阻塞 */
+        /* 暂时注释掉，等系统启动后再解析 */
+        /*
+        if (btf_add_structs_to_hash(structs_to_parse, ARRAY_SIZE(structs_to_parse)) != 0) {
+            logkw("Some structs failed to parse\n");
+            ret = -1;
+        }
+        */
     }
 
     log_boot("BTF hash table initialized\n");
