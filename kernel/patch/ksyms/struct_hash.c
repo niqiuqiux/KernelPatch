@@ -145,13 +145,18 @@ int32_t alloc_struct_members(const btf_t *btf, uint32_t type_id, btf_member_info
 {
     if (!btf || !out_members) return -1;
 
+    /* btf_get_struct_members 内部会处理 TYPEDEF/FWD 等情况，但我们需要先估算容量
+     * 先尝试从原始type_id获取vlen，如果失败则使用默认值 */
     const struct btf_type *t = btf_type_by_id(btf, type_id);
-    if (!t) {
-        *out_members = NULL;
-        return -1;
+    uint32_t vlen = 0;
+    if (t) {
+        uint32_t kind = BTF_INFO_KIND(t->info);
+        /* 如果是STRUCT/UNION，直接使用vlen；否则使用默认值 */
+        if (kind == BTF_KIND_STRUCT || kind == BTF_KIND_UNION) {
+            vlen = BTF_INFO_VLEN(t->info);
+        }
     }
 
-    uint32_t vlen = BTF_INFO_VLEN(t->info);
     /* 默认 256，若 vlen 更大则扩到 vlen，设上限 4096 防御 */
     uint32_t cap = vlen ? vlen : 256;
     if (cap > 4096) cap = 4096;
@@ -164,6 +169,7 @@ int32_t alloc_struct_members(const btf_t *btf, uint32_t type_id, btf_member_info
     }
     lib_memset(buf, 0, cap * sizeof(*buf));
 
+    /* btf_get_struct_members 内部会调用 btf_find_complete_struct_id 来解析类型 */
     int32_t count = btf_get_struct_members(btf, type_id, buf, cap);
     if (count <= 0) {
         vfree(buf);
@@ -277,7 +283,7 @@ int btf_add_struct_to_hash(const char *struct_name)
 
     if (ensure_btf_ready() != 0) return -1;
 
-    ensure_hash_ready();
+    //ensure_hash_ready();
     return parse_struct_with_btf(&g_btf, struct_name);
 }
 KP_EXPORT_SYMBOL(btf_add_struct_to_hash);
@@ -324,13 +330,17 @@ __noinline int parse_struct_with_btf(const btf_t *btf, const char *struct_name)
             logkw("Struct '%s' not found in BTF\n", struct_name);
             return -1;
         }
+        logki("Found '%s' as non-STRUCT type (type_id=%d), btf_get_struct_members will resolve it\n", struct_name, type_id);
+    } else {
+        logki("Found '%s' as STRUCT type (type_id=%d)\n", struct_name, type_id);
     }
 
-    /* 获取结构体成员 */
+    /* 获取结构体成员
+     * btf_get_struct_members 内部会调用 btf_find_complete_struct_id 来解析 TYPEDEF/FWD 等情况 */
     btf_member_info_t *members = NULL;
     int32_t member_count = alloc_struct_members(btf, (uint32_t)type_id, &members, NULL);
     if (member_count <= 0 || !members) {
-        logkw("Struct '%s' has no members or failed to get members\n", struct_name);
+        logkw("Struct '%s' (type_id=%d) has no members or failed to get members\n", struct_name, type_id);
         return -1;
     }
 
@@ -381,7 +391,7 @@ int resolve_struct_with_btf_hash(void)
         return -1;
     }
 
-    ensure_hash_ready();
+    // ensure_hash_ready();
 
     /* 解析主要结构体 */
     const char *structs_to_parse[] = {
