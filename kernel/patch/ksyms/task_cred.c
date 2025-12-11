@@ -347,7 +347,7 @@ int resolve_struct()
         logke("resolve_struct_with_btf_hash failed\n");
         goto out;
     }
-    btf_dump_struct_hash();
+    //btf_dump_struct_hash();
 out:
     return err;
 }

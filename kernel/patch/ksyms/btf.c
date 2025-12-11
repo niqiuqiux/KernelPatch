@@ -3,9 +3,8 @@
  * Copyright (C) 2025 niqiuqiux. All Rights Reserved.
  */
 
-
-#include "baselib.h"
 #include <linux/vmalloc.h>
+#include "linux/string.h"
 #include "uapi/linux/btf.h"
 
 
@@ -178,8 +177,9 @@
           /* 调试：打印前几个类型的信息 */
           if (type_count < 5) {
               uint32_t name_off = t->name_off;
-              log_boot("type[%u]: kind=%u, vlen=%u, name_off=%u, offset=%u\n", 
-                         type_count, kind, vlen, name_off, offset);
+              const char *name_str = btf->strings + name_off;
+              log_boot("type[%u]: kind=%u, vlen=%u, name_off=%u, offset=%u, name=%s \n", 
+                         type_count, kind, vlen, name_off, offset, name_str ? name_str : "anon");
           }
   
           /* kind == 0 是void类型，仍然是有效类型，不应该break */
@@ -286,6 +286,7 @@
      }
  type_parse_done:
      /* label needs a statement; use empty statement to keep following declarations valid */
+     log_boot("type_count: %u\n", type_count);
      ;
  
      uint32_t expected_type_count = type_count;
@@ -403,6 +404,15 @@
           /* 使用实际解析的类型数量 */
           *nr_types = type_count;
       }
+
+      {
+        //测试642的
+        const struct btf_type *t = btf_type_by_id(btf, 642);
+        if (t) {
+            log_boot("type[642]: name=%s\n", btf_name_by_offset(btf, t->name_off));
+        }
+
+      }
       
       log_boot("parsed %u BTF types (validated %u types in second pass)\n", *nr_types, type_count);
       return 0;
@@ -415,7 +425,7 @@
           return -1;
       }
  
-      lib_memset(btf, 0, sizeof(btf_t));
+      memset(btf, 0, sizeof(btf_t));
  
       /* 从内核虚拟地址空间获取BTF数据 */
       const char *btf_data = NULL;
@@ -441,7 +451,7 @@
       }
  
       /* 注意：data、hdr、strings 指向内核虚拟地址空间，不需要释放 */
-      lib_memset(btf, 0, sizeof(btf_t));
+      memset(btf, 0, sizeof(btf_t));
   }
   
   /* 根据类型ID获取类型 */
@@ -573,7 +583,7 @@
          if (!tname)
              continue;
  
-         if (lib_strcmp(tname, name) == 0)
+         if (strcmp(tname, name) == 0)
              return (int32_t)i;
      }
  
@@ -666,7 +676,7 @@ static bool resolve_struct_or_union_type_id(const btf_t *btf, uint32_t type_id, 
              continue;
  
          const char *cname = btf_name_by_offset(btf, cand->name_off);
-         if (!cname || lib_strcmp(name, cname) != 0)
+         if (!cname || strcmp(name, cname) != 0)
              continue;
  
          if (cand->size > 0 && BTF_INFO_VLEN(cand->info) > 0)
@@ -773,7 +783,7 @@ static bool resolve_struct_or_union_type_id(const btf_t *btf, uint32_t type_id, 
  
          //members = kcalloc(vlen_cap, sizeof(*members), GFP_KERNEL);
         members = vmalloc(vlen_cap * sizeof(*members));
-         lib_memset(members, 0, vlen_cap * sizeof(*members));
+         memset(members, 0, vlen_cap * sizeof(*members));
          if (!members)
              return -1;
  
@@ -786,7 +796,7 @@ static bool resolve_struct_or_union_type_id(const btf_t *btf, uint32_t type_id, 
  
      for (int32_t i = 0; i < count; i++) {
          const char *name = members[i].name;
-         if (name && lib_strcmp(name, member_name) == 0) {
+         if (name && strcmp(name, member_name) == 0) {
              *out = members[i];
             vfree(members);
              return 0;
@@ -814,7 +824,7 @@ static bool resolve_struct_or_union_type_id(const btf_t *btf, uint32_t type_id, 
  
          //btf_member_info_t *nested = kcalloc(nested_cap, sizeof(*nested), GFP_KERNEL);
         btf_member_info_t *nested = vmalloc(nested_cap * sizeof(*nested));
-         lib_memset(nested, 0, nested_cap * sizeof(*nested));
+         memset(nested, 0, nested_cap * sizeof(*nested));
          if (!nested)
              continue;
  
@@ -824,7 +834,7 @@ static bool resolve_struct_or_union_type_id(const btf_t *btf, uint32_t type_id, 
                  const char *n = nested[j].name;
                  if (!n)
                      continue;
-                 if (lib_strcmp(n, member_name) != 0)
+                 if (strcmp(n, member_name) != 0)
                      continue;
  
                  *out = nested[j];
@@ -910,22 +920,22 @@ static uint32_t btf_resolve_real_type_id(const btf_t *btf, uint32_t type_id) {
      enum { MAX_SEG = 32, MAX_SEG_LEN = 128 };
      char buf[1024];
  
-     size_t path_len = lib_strlen(path);
+     size_t path_len = strlen(path);
      if (path_len == 0 || path_len >= sizeof(buf))
          return -1;
  
-     lib_memcpy(buf, path, path_len + 1);
+     memcpy(buf, path, path_len + 1);
  
      char *segs[MAX_SEG];
      int seg_cnt = 0;
  
      char *saveptr = buf;
-     char *token = lib_strsep(&saveptr, ".");
+     char *token = strsep(&saveptr, ".");
      while (token && seg_cnt < MAX_SEG) {
-         if (lib_strlen(token) == 0 || lib_strlen(token) >= MAX_SEG_LEN)
+         if (strlen(token) == 0 || strlen(token) >= MAX_SEG_LEN)
              return -1;
          segs[seg_cnt++] = token;
-         token = lib_strsep(&saveptr, ".");
+         token = strsep(&saveptr, ".");
      }
  
      if (seg_cnt == 0)
@@ -1295,7 +1305,7 @@ static uint32_t btf_resolve_real_type_id(const btf_t *btf, uint32_t type_id) {
      if (!btf || !prefix || !btf->types || !btf->strings || btf->nr_types == 0)
          return -1;
  
-     uint32_t prefix_len = lib_strlen(prefix);
+     uint32_t prefix_len = strlen(prefix);
      if (prefix_len == 0)
          return -1;
  
@@ -1315,7 +1325,7 @@ static uint32_t btf_resolve_real_type_id(const btf_t *btf, uint32_t type_id) {
          if (!tname)
              continue;
  
-         if (lib_strncmp(tname, prefix, prefix_len) == 0)
+         if (strncmp(tname, prefix, prefix_len) == 0)
              return (int32_t)i;
      }
  
@@ -1328,7 +1338,7 @@ static uint32_t btf_resolve_real_type_id(const btf_t *btf, uint32_t type_id) {
      if (!btf || !prefix || !btf->types || !btf->strings || btf->nr_types == 0)
          return -1;
  
-     uint32_t prefix_len = lib_strlen(prefix);
+     uint32_t prefix_len = strlen(prefix);
      if (prefix_len == 0)
          return -1;
  
@@ -1352,7 +1362,7 @@ static uint32_t btf_resolve_real_type_id(const btf_t *btf, uint32_t type_id) {
          if (!tname)
              continue;
  
-         if (lib_strncmp(tname, prefix, prefix_len) == 0)
+         if (strncmp(tname, prefix, prefix_len) == 0)
              return (int32_t)i;
      }
  

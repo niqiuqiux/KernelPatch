@@ -51,7 +51,7 @@ struct struct_member_entry {
 int btf_add_struct_to_hash(const char *struct_name);
 
 /* 批量添加结构体到哈希表 */
-int btf_add_structs_to_hash(const char *const *struct_names, size_t count);
+int btf_add_structs_to_hash(const char *struct_names[], size_t count);
 
 /* 使用 BTF 解析结构体并填充哈希表 */
 __noinline

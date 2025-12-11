@@ -1,5 +1,6 @@
 
-#include "baselib.h"
+
+#include "log.h"
 #include "symbol.h"
 #include <linux/kernel.h>
 
@@ -11,6 +12,7 @@
 #include "uapi/linux/btf.h"
 #include "linux/jhash.h"
 #include "linux/hashtable.h"
+#include <stdint.h>
 
 #include "struct_hash.h"
 
@@ -71,6 +73,7 @@ uint32_t member_hash_key(const char *struct_name, const char *member_name)
 }
 
 /* 查找哈希表条目 */
+__noinline
 struct struct_member_entry *find_member_entry(const char *struct_name, const char *member_name)
 {
     if (!struct_name || !member_name) {
@@ -118,7 +121,7 @@ int add_member_to_hash(const char *struct_name, const char *member_name, uint32_
         return -1;
     }
 
-    lib_memset(entry, 0, sizeof(*entry));
+    memset(entry, 0, sizeof(*entry));
     /* 使用snprintf安全地复制字符串，自动处理null终止 */
     snprintf(entry->struct_name, sizeof(entry->struct_name), "%s", struct_name);
     snprintf(entry->member_name, sizeof(entry->member_name), "%s", member_name);
@@ -167,7 +170,7 @@ int32_t alloc_struct_members(const btf_t *btf, uint32_t type_id, btf_member_info
         *out_members = NULL;
         return -1;
     }
-    lib_memset(buf, 0, cap * sizeof(*buf));
+    memset(buf, 0, cap * sizeof(*buf));
 
     /* btf_get_struct_members 内部会调用 btf_find_complete_struct_id 来解析类型 */
     int32_t count = btf_get_struct_members(btf, type_id, buf, cap);
@@ -278,10 +281,10 @@ void add_nested_members(const btf_t *btf, const char *struct_name, const btf_mem
         }
 
         uint32_t combined_offset = parent_member->offset + nested[j].offset;
-        // if (add_member_to_hash(struct_name, full_name, combined_offset, nested[j].type_id) != 0) {
-        //     logke("Failed to add nested member '%s.%s'\n", struct_name, full_name);
-        //     continue;
-        // }
+        if (add_member_to_hash(struct_name, full_name, combined_offset, nested[j].type_id) != 0) {
+            logke("Failed to add nested member '%s.%s'\n", struct_name, full_name);
+            continue;
+        }
 
         logki("  Added nested: %s.%s offset=0x%x type_id=%u\n",
               struct_name, full_name, combined_offset, nested[j].type_id);
@@ -291,6 +294,7 @@ void add_nested_members(const btf_t *btf, const char *struct_name, const btf_mem
 }
 
 /* 供外部调用：将指定结构体的成员添加到哈希表 */
+__noinline
 int btf_add_struct_to_hash(const char *struct_name)
 {
     if (!struct_name || !struct_name[0]) {
@@ -306,7 +310,8 @@ int btf_add_struct_to_hash(const char *struct_name)
 KP_EXPORT_SYMBOL(btf_add_struct_to_hash);
 
 /* 批量添加结构体到哈希表 */
-int btf_add_structs_to_hash(const char *const *struct_names, size_t count)
+__noinline
+int btf_add_structs_to_hash(const char *struct_names[], size_t count)
 {
     int ret = 0;
     int success_count = 0;
@@ -390,12 +395,43 @@ __noinline int parse_struct_with_btf(const btf_t *btf, const char *struct_name)
 
         /* 支持二级结构体：对嵌套的 struct/union 再解析一层
          * 注意：嵌套解析已限制深度，避免消耗过多内存 */
-        add_nested_members(btf, struct_name, &members[i]);
+       add_nested_members(btf, struct_name, &members[i]);
     }
 
     vfree(members);
     return 0;
 }
+
+struct member_test_case
+{
+    const char *struct_name;
+    const char *member_name;
+};
+
+void test_struct_member(void)
+{
+
+    const struct member_test_case member_tests[] = {
+        { "task_struct", "pid" }, { "task_struct", "comm" }, { "task_struct", "tasks.next" },
+        { "cred", "uid" },        { "mm_struct", "pgd" }
+    };
+/*为什么数组相关的会导致运行不正常？*/
+    for (int j = 0; j < ARRAY_SIZE(member_tests); j++) {
+        const struct member_test_case test = member_tests[j];
+        int32_t offset;
+        /* 直接从已构建的哈希表查询 */
+        offset = btf_get_member_offset(test.struct_name, test.member_name);
+        if (offset < 0) {
+            logke("Hash lookup offset failed for %s.%s (not found)\n", test.struct_name, test.member_name);
+
+            continue;
+        }
+
+        logki("Hash query passed for %s.%s (offset=0x%x)\n", test.struct_name, test.member_name, offset);
+    }
+}
+
+
 
 /* 
  * 使用 BTF 解析所有结构体并建立哈希表
@@ -407,6 +443,7 @@ __noinline int parse_struct_with_btf(const btf_t *btf, const char *struct_name)
  * 
  * 返回 0 表示成功，负数表示失败
  */
+ __noinline
 int resolve_struct_with_btf_hash(void)
 {
     int ret = 0;
@@ -423,27 +460,16 @@ int resolve_struct_with_btf_hash(void)
 
     /* 在启动早期，只解析最关键的结构体，避免系统无法启动
      * 其他结构体可以在系统启动后再解析 */
-    const char *critical_structs[] = {
-        "task_struct", "cred", "mm_struct"
-    };
+    const char *critical_structs[] = { "task_struct", "cred", "mm_struct" };
 
-    /* 先解析关键结构体 */
-    if (btf_add_structs_to_hash(critical_structs, ARRAY_SIZE(critical_structs)) != 0) {
-        logkw("Some critical structs failed to parse\n");
-        ret = -1;
+    for (int i = 0; i < ARRAY_SIZE(critical_structs); i++) {
+        btf_add_struct_to_hash(critical_structs[i]);
     }
 
-    /* 如果关键结构体解析成功，再解析其他结构体（可选） */
-    if (ret == 0) {
-        /* 延迟解析非关键结构体，避免启动时阻塞 */
-        /* 暂时注释掉，等系统启动后再解析 */
-        /*
-        if (btf_add_structs_to_hash(structs_to_parse, ARRAY_SIZE(structs_to_parse)) != 0) {
-            logkw("Some structs failed to parse\n");
-            ret = -1;
-        }
-        */
-    }
+
+    // test_struct_member();
+    int32_t  offset = btf_get_member_offset("task_struct", "pid");
+    log_boot("task_struct.pid offset = 0x%x\n", offset);
 
     log_boot("BTF hash table initialized\n");
     return ret;
@@ -457,6 +483,7 @@ int resolve_struct_with_btf_hash(void)
  * 
  * 返回成员的字节偏移量，失败返回 -1
  */
+ __noinline
 int32_t btf_get_member_offset(const char *struct_name, const char *member_name)
 {
     struct struct_member_entry *entry;
@@ -514,7 +541,7 @@ void btf_dump_struct_hash(void)
     log_boot("Dumping struct member hash table:\n");
     hash_for_each(struct_member_hash, bkt, entry, node)
     {
-        log_boot("  %s.%s => offset=0x%x type_id=%u\n", entry->struct_name, entry->member_name, entry->offset,
+        logkd("  %s.%s => offset=0x%x type_id=%u\n", entry->struct_name, entry->member_name, entry->offset,
               entry->type_id);
     }
 }
