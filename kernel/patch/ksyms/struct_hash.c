@@ -256,13 +256,13 @@ void add_nested_members(const btf_t *btf, const char *struct_name, const btf_mem
         }
 
         uint32_t combined_offset = parent_member->offset + nested[j].offset;
-        if (add_member_to_hash(struct_name, full_name, combined_offset, nested[j].type_id) != 0) {
-            logke("Failed to add nested member '%s.%s'\n", struct_name, full_name);
-            continue;
-        }
+        // if (add_member_to_hash(struct_name, full_name, combined_offset, nested[j].type_id) != 0) {
+        //     logke("Failed to add nested member '%s.%s'\n", struct_name, full_name);
+        //     continue;
+        // }
 
-        // logki("  Added nested: %s.%s offset=0x%x type_id=%u\n",
-        //       struct_name, full_name, combined_offset, nested[j].type_id);
+        logki("  Added nested: %s.%s offset=0x%x type_id=%u\n",
+              struct_name, full_name, combined_offset, nested[j].type_id);
     }
     vfree(nested);
 }
@@ -343,13 +343,13 @@ __noinline int parse_struct_with_btf(const btf_t *btf, const char *struct_name)
         uint32_t offset = members[i].offset;
         uint32_t member_type_id = members[i].type_id;
 
-        if (add_member_to_hash(struct_name, member_name, offset, member_type_id) != 0) {
-            logke("Failed to add member '%s.%s' to hash table\n", struct_name, member_name);
-            continue;
-        }
+        // if (add_member_to_hash(struct_name, member_name, offset, member_type_id) != 0) {
+        //     logke("Failed to add member '%s.%s' to hash table\n", struct_name, member_name);
+        //     continue;
+        // }
 
-        // logki("  Added: %s.%s offset=0x%x type_id=%u\n",
-        //       struct_name, member_name, offset, member_type_id);
+        logki("  Added: %s.%s offset=0x%x type_id=%u\n",
+              struct_name, member_name, offset, member_type_id);
 
         /* 支持二级结构体：对嵌套的 struct/union 再解析一层 */
         add_nested_members(btf, struct_name, &members[i]);
