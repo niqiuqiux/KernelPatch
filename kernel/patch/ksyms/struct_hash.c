@@ -7,6 +7,7 @@
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/string.h>
+#include <linux/spinlock.h>
 
 #include "uapi/linux/btf.h"
 #include "linux/jhash.h"
@@ -27,6 +28,7 @@
 #define STRUCT_MEMBER_HASH_BITS 20
 DEFINE_HASHTABLE(struct_member_hash, STRUCT_MEMBER_HASH_BITS);
 static bool struct_member_hash_initialized = false;
+static DEFINE_SPINLOCK(struct_member_lock);
 static btf_t g_btf;
 static bool g_btf_initialized = false;
 
@@ -47,10 +49,14 @@ static int ensure_btf_ready(void)
 /* 确保哈希表已初始化 */
 static inline void ensure_hash_ready(void)
 {
+    // unsigned long flags;
+
+    // spin_lock_irqsave(&struct_member_lock, flags);
     if (!struct_member_hash_initialized) {
         hash_init(struct_member_hash);
         struct_member_hash_initialized = true;
     }
+    // spin_unlock_irqrestore(&struct_member_lock, flags);
 }
 
 /* 计算字符串的哈希值（用于哈希表键） */
@@ -90,14 +96,14 @@ uint32_t member_hash_key(const char *struct_name, const char *member_name)
 }
 
 /* 查找哈希表条目 */
-struct struct_member_entry *find_member_entry(const char *struct_name, const char *member_name)
+static inline struct struct_member_entry *__find_member_entry_locked(const char *struct_name,
+                                                                     const char *member_name)
 {
-    if (!struct_name || !member_name) {
-        return NULL;
-    }
+    struct struct_member_entry *entry;
+
+    if (!struct_name || !member_name) return NULL;
 
     uint32_t key = member_hash_key(struct_name, member_name);
-    struct struct_member_entry *entry;
 
     hash_for_each_possible(struct_member_hash, entry, node, key)
     {
@@ -108,11 +114,24 @@ struct struct_member_entry *find_member_entry(const char *struct_name, const cha
 
     return NULL;
 }
+
+struct struct_member_entry *find_member_entry(const char *struct_name, const char *member_name)
+{
+    unsigned long flags;
+    struct struct_member_entry *entry;
+
+    spin_lock_irqsave(&struct_member_lock, flags);
+    entry = __find_member_entry_locked(struct_name, member_name);
+    spin_unlock_irqrestore(&struct_member_lock, flags);
+
+    return entry;
+}
 KP_EXPORT_SYMBOL(find_member_entry);
 
 /* 添加成员到哈希表 */
 int add_member_to_hash(const char *struct_name, const char *member_name, uint32_t offset, uint32_t type_id)
 {
+    unsigned long flags;
     struct struct_member_entry *entry;
 
     /* 参数检查 */
@@ -121,12 +140,18 @@ int add_member_to_hash(const char *struct_name, const char *member_name, uint32_
         return -1;
     }
 
+    spin_lock_irqsave(&struct_member_lock, flags);
+
+    /* 确保哈希表初始化 */
+    ensure_hash_ready();
+
     /* 检查是否已存在 */
-    entry = find_member_entry(struct_name, member_name);
+    entry = __find_member_entry_locked(struct_name, member_name);
     if (entry) {
         /* 更新现有条目 */
         entry->offset = offset;
         entry->type_id = type_id;
+        spin_unlock_irqrestore(&struct_member_lock, flags);
         return 0;
     }
 
@@ -134,6 +159,7 @@ int add_member_to_hash(const char *struct_name, const char *member_name, uint32_
     entry = vmalloc(sizeof(*entry));
     if (!entry) {
         logke("Failed to allocate struct_member_entry\n");
+        spin_unlock_irqrestore(&struct_member_lock, flags);
         return -1;
     }
 
@@ -148,6 +174,8 @@ int add_member_to_hash(const char *struct_name, const char *member_name, uint32_
     /* 添加到哈希表 */
     uint32_t key = member_hash_key(struct_name, member_name);
     hash_add(struct_member_hash, &entry->node, key);
+
+    spin_unlock_irqrestore(&struct_member_lock, flags);
 
     return 0;
 }

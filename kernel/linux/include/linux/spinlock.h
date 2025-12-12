@@ -70,6 +70,11 @@ extern void kfunc_def(_raw_write_unlock_irqrestore)(rwlock_t *lock, unsigned lon
 extern void kfunc_def(_raw_write_unlock_irq)(rwlock_t *lock);
 extern void kfunc_def(_raw_write_unlock_bh)(rwlock_t *lock);
 
+static __always_inline raw_spinlock_t *spinlock_check(spinlock_t *lock)
+{
+	return &lock->rlock;
+}
+
 static inline int raw_spin_trylock(raw_spinlock_t *lock)
 {
     kfunc_direct_call(_raw_spin_trylock, lock);
@@ -101,15 +106,37 @@ static inline void spin_lock(spinlock_t *lock)
     return raw_spin_lock(&lock->rlock);
 }
 
-static inline unsigned long raw_spin_lock_irqsave(raw_spinlock_t *lock)
-{
-    kfunc_direct_call(_raw_spin_lock_irqsave, lock);
-}
+// static inline unsigned long raw_spin_lock_irqsave(raw_spinlock_t *lock)
+// {
+//     kfunc_direct_call(_raw_spin_lock_irqsave, lock);
+// }
 
-static inline unsigned long spin_lock_irqsave(spinlock_t *lock)
-{
-    return raw_spin_lock_irqsave(&lock->rlock);
-}
+// static inline unsigned long spin_lock_irqsave(spinlock_t *lock)
+// {
+//     return raw_spin_lock_irqsave(&lock->rlock);
+// }
+
+// #define raw_spin_lock_irqsave(lock, flags)			\
+// 	do {						\
+// 		typecheck(unsigned long, flags);	\
+// 		flags = kfunc_direct_call_void(_raw_spin_lock_irqsave, lock);	\
+// 	} while (0)
+
+#define raw_spin_lock_irqsave(lock, flags)			\
+	do {						\
+		flags = kfunc_direct_call_void(_raw_spin_lock_irqsave, lock);	\
+	} while (0)
+
+#define spin_lock_irqsave(lock, flags)				\
+do {								\
+	raw_spin_lock_irqsave(spinlock_check(lock), flags);	\
+} while (0)
+
+
+// static __always_inline void spin_unlock_irqrestore(spinlock_t *lock, unsigned long flags)
+// {
+// 	raw_spin_unlock_irqrestore(&lock->rlock, flags);
+// }
 
 static inline void raw_spin_lock_irq(raw_spinlock_t *lock)
 {
