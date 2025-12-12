@@ -435,9 +435,9 @@ int resolve_struct()
     }
 //    btf_dump_struct_hash();
 
-    resolve_current();
-
     resolve_task_offset();
+
+    resolve_current();
 
     resolve_cred_offset();
 
