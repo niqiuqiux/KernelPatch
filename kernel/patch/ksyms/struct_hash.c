@@ -1,4 +1,5 @@
 
+#include "log.h"
 #include "symbol.h"
 #include <linux/kernel.h>
 
@@ -23,7 +24,7 @@
 // };
 
 /* 哈希表：使用 10 位，即 1024 个桶 */
-#define STRUCT_MEMBER_HASH_BITS 10
+#define STRUCT_MEMBER_HASH_BITS 20
 DEFINE_HASHTABLE(struct_member_hash, STRUCT_MEMBER_HASH_BITS);
 static bool struct_member_hash_initialized = false;
 static btf_t g_btf;
@@ -159,6 +160,7 @@ const char *btf_type_name_by_id(const btf_t *btf, uint32_t type_id)
 }
 
 /* 为结构体/联合分配成员缓冲区，容量按 vlen 决定，最大限制 4096 */
+__noinline
 int32_t alloc_struct_members(const btf_t *btf, uint32_t type_id, btf_member_info_t **out_members,
                              uint32_t *out_capacity)
 {
@@ -196,6 +198,7 @@ int32_t alloc_struct_members(const btf_t *btf, uint32_t type_id, btf_member_info
 }
 
 /* 跳过 typedef/const/volatile/restrict，获取真实类型 ID；遇到指针直接返回 false */
+__noinline
 bool resolve_struct_or_union_type_id(const btf_t *btf, uint32_t type_id, uint32_t *resolved_id)
 {
     uint32_t depth = 0;
@@ -231,6 +234,7 @@ bool resolve_struct_or_union_type_id(const btf_t *btf, uint32_t type_id, uint32_
 }
 
 /* 解析一层嵌套结构体成员（member_name.nested），并写入哈希表 */
+__noinline
 void add_nested_members(const btf_t *btf, const char *struct_name, const btf_member_info_t *parent_member)
 {
     if (!parent_member) return;
@@ -287,6 +291,7 @@ void add_nested_members(const btf_t *btf, const char *struct_name, const btf_mem
 }
 
 /* 供外部调用：将指定结构体的成员添加到哈希表 */
+__noinline
 int btf_add_struct_to_hash(const char *struct_name)
 {
     if (!struct_name || !struct_name[0]) {
@@ -302,6 +307,7 @@ int btf_add_struct_to_hash(const char *struct_name)
 KP_EXPORT_SYMBOL(btf_add_struct_to_hash);
 
 /* 批量添加结构体到哈希表 */
+__noinline
 int btf_add_structs_to_hash(const char *const *struct_names, size_t count)
 {
     int ret = 0;
@@ -341,7 +347,7 @@ __noinline int parse_struct_with_btf(const btf_t *btf, const char *struct_name)
         return -1;
     }
 
-    log_boot("Parsing struct '%s' (%d members)\n", struct_name, member_count);
+    logki("Parsing struct '%s' (%d members)\n", struct_name, member_count);
 
     /* 将每个成员添加到哈希表 */
     for (int32_t i = 0; i < member_count; i++) {
@@ -380,7 +386,7 @@ int resolve_struct_with_btf_hash(void)
 {
     int ret = 0;
 
-    log_boot("Resolving struct offsets using BTF hash table\n");
+    logki("Resolving struct offsets using BTF hash table\n");
 
     /* 初始化 BTF 和哈希表 */
     if (ensure_btf_ready() != 0) {
@@ -390,20 +396,39 @@ int resolve_struct_with_btf_hash(void)
 
     ensure_hash_ready();
 
-    /* 解析主要结构体 */
-    const char *structs_to_parse[] = {
-        "task_struct", "mm_struct", "cred", "mount", "vm_area_struct", "file",
-        "inode",       "dentry",    "path", "page",  "super_block",    "input_dev",
-        "selinux_policy","policydb"
+    /* 为什么超过3个就不行？ 
+    3个以内编译前直接编译为3个函数调用
+    以上 会是do while循环 就炸 有点奇怪？ 栈问题？
+    */
+    static const char *structs_to_parse[] = { 
+        "task_struct","mm_struct","cred",   
+        "mount","vm_area_struct", "file",
+         "inode",  "dentry", "path",
+          "page", "super_block", "input_dev",
+           "selinux_policy", "policydb",
+            NULL };
 
-    };
+    // for (int i = 0; i < ARRAY_SIZE(structs_to_parse); i++) {
+    //     if (structs_to_parse[i] == NULL) break;
+    //     btf_add_struct_to_hash(structs_to_parse[i]);
+    // }
 
-    if (btf_add_structs_to_hash(structs_to_parse, ARRAY_SIZE(structs_to_parse)) != 0) {
-        logkw("Some structs failed to parse\n");
-        ret = -1;
-    }
+    btf_add_struct_to_hash(structs_to_parse[0]);
+    btf_add_struct_to_hash(structs_to_parse[1]);
+    btf_add_struct_to_hash(structs_to_parse[2]);
+    btf_add_struct_to_hash(structs_to_parse[3]);
+    btf_add_struct_to_hash(structs_to_parse[4]);
+    btf_add_struct_to_hash(structs_to_parse[5]);
+    btf_add_struct_to_hash(structs_to_parse[6]);
+    btf_add_struct_to_hash(structs_to_parse[7]);
+    btf_add_struct_to_hash(structs_to_parse[8]);
+    btf_add_struct_to_hash(structs_to_parse[9]);
+    btf_add_struct_to_hash(structs_to_parse[10]);
+    btf_add_struct_to_hash(structs_to_parse[11]);
+    btf_add_struct_to_hash(structs_to_parse[12]);
+    btf_add_struct_to_hash(structs_to_parse[13]);
 
-    log_boot("BTF hash table initialized\n");
+    logki("BTF hash table initialized\n");
     return ret;
 }
 
@@ -469,10 +494,10 @@ void btf_dump_struct_hash(void)
 
     struct struct_member_entry *entry;
     int bkt;
-    log_boot("Dumping struct member hash table:\n");
+    logki("Dumping struct member hash table:\n");
     hash_for_each(struct_member_hash, bkt, entry, node)
     {
-        log_boot("  %s.%s => offset=0x%x type_id=%u\n", entry->struct_name, entry->member_name, entry->offset,
+        logkd("  %s.%s => offset=0x%x type_id=%u\n", entry->struct_name, entry->member_name, entry->offset,
               entry->type_id);
     }
 }

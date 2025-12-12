@@ -1048,20 +1048,11 @@ int patch_update_img(const char *kimg_path, const char *kpimg_path, const char *
     // start symbol
     fillin_patch_config(&kallsym, kallsym_kimg, ori_kimg_len, &setup->patch_config, kinfo->is_be, 0);
 
-    int __start_BTF = get_symbol_offset_exit(&kallsym, kallsym_kimg, "__start_BTF");
+    int __start_BTF = get_symbol_offset_zero(&kallsym, kallsym_kimg, "__start_BTF");
+    if (__start_BTF == 0) {
+     tools_loge_exit("__start_BTF not found. this kernel image is not compiled with BTF.\n");
+    }
     tools_logi("__start_BTF: 0x%x\n", __start_BTF);
-    // 从BTF提取结构体偏移量
-    if (extract_struct_offsets_from_btf(kernel_file.kimg, kernel_file.kimg_len, __start_BTF, &setup->struct_offsets) != 0) {
-        tools_loge_exit("Failed to extract struct offsets from BTF. BTF is required for this branch.\n");
-    }
-
-    // 字节序转换（如果需要）
-    if ((is_be() ^ kinfo->is_be)) {
-        int16_t *fields = (int16_t *)&setup->struct_offsets;
-        for (size_t i = 0; i < STRUCT_OFFSETS_INT16_COUNT; i++) {
-            fields[i] = i16swp(fields[i]);
-        }
-    }
 
     // superkey
     if (!root_key) {

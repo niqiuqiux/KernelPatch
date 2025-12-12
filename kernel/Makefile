@@ -4,7 +4,7 @@ endif
 # export ANDROID=1
 
 # export TARGET_COMPILE=/home/ni/x86_64-aarch64-none-elf/bin/aarch64-none-elf-
-
+# export TARGET_COMPILE=/home/ni/arm-gnu-toolchain-12.2-x86_64-aarch64-none-elf/bin/aarch64-none-elf-
 TARGET=kpimg
 
 CC = $(TARGET_COMPILE)gcc

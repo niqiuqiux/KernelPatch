@@ -36,9 +36,6 @@
  
  #define PATCH_EXTRA_ITEM_LEN (128)
  
-#define STRUCT_OFFSETS_LEN (100*2)
-/* struct_offsets_t中int16_t字段的数量：17(task_struct) + 26(cred) + 20(mm_struct) = 63 */
-#define STRUCT_OFFSETS_INT16_COUNT (63)
 
 #define VERSION(major, minor, patch) (((major) << 16) + ((minor) << 8) + (patch))
  
@@ -208,95 +205,7 @@
  _Static_assert(sizeof(patch_extra_item_t) == PATCH_EXTRA_ITEM_LEN, "sizeof patch_extra_item_t mismatch");
  #endif
  
- #ifndef __ASSEMBLY__
- 
- /* 结构体偏移量配置结构 - 从BTF提取的结构体成员偏移量 */
- typedef struct
- {
-     union
-     {
-         struct
-         {
-            /* task_struct偏移量 */
-            int16_t task_struct_pid_offset;
-            int16_t task_struct_tgid_offset;
-            int16_t task_struct_thread_pid_offset;
-            int16_t task_struct_ptracer_cred_offset;
-            int16_t task_struct_real_cred_offset;
-            int16_t task_struct_cred_offset;
-            int16_t task_struct_fs_offset;
-            int16_t task_struct_files_offset;
-            int16_t task_struct_loginuid_offset;
-            int16_t task_struct_sessionid_offset;
-            int16_t task_struct_comm_offset;
-            int16_t task_struct_seccomp_offset;
-            int16_t task_struct_security_offset;
-            int16_t task_struct_stack_offset;
-            int16_t task_struct_tasks_offset;
-            int16_t task_struct_mm_offset;
-            int16_t task_struct_active_mm_offset;
-            
-            /* cred偏移量 */
-            int16_t cred_usage_offset;
-            int16_t cred_subscribers_offset;
-            int16_t cred_magic_offset;
-            int16_t cred_uid_offset;
-            int16_t cred_gid_offset;
-            int16_t cred_suid_offset;
-            int16_t cred_sgid_offset;
-            int16_t cred_euid_offset;
-            int16_t cred_egid_offset;
-            int16_t cred_fsuid_offset;
-            int16_t cred_fsgid_offset;
-            int16_t cred_securebits_offset;
-            int16_t cred_cap_inheritable_offset;
-            int16_t cred_cap_permitted_offset;
-            int16_t cred_cap_effective_offset;
-            int16_t cred_cap_bset_offset;
-            int16_t cred_cap_ambient_offset;
-            int16_t cred_user_offset;
-            int16_t cred_user_ns_offset;
-            int16_t cred_ucounts_offset;
-            int16_t cred_group_info_offset;
-            int16_t cred_session_keyring_offset;
-            int16_t cred_process_keyring_offset;
-            int16_t cred_thread_keyring_offset;
-            int16_t cred_request_key_auth_offset;
-            int16_t cred_security_offset;
-            int16_t cred_rcu_offset;
-            
-            /* mm_struct偏移量 */
-            int16_t mm_struct_mmap_base_offset;
-            int16_t mm_struct_task_size_offset;
-            int16_t mm_struct_pgd_offset;
-            int16_t mm_struct_map_count_offset;
-            int16_t mm_struct_total_vm_offset;
-            int16_t mm_struct_locked_vm_offset;
-            int16_t mm_struct_pinned_vm_offset;
-            int16_t mm_struct_data_vm_offset;
-            int16_t mm_struct_exec_vm_offset;
-            int16_t mm_struct_stack_vm_offset;
-            int16_t mm_struct_start_code_offset;
-            int16_t mm_struct_end_code_offset;
-            int16_t mm_struct_start_data_offset;
-            int16_t mm_struct_end_data_offset;
-            int16_t mm_struct_start_brk_offset;
-            int16_t mm_struct_brk_offset;
-            int16_t mm_struct_start_stack_offset;
-            int16_t mm_struct_arg_start_offset;
-            int16_t mm_struct_arg_end_offset;
-            int16_t mm_struct_env_start_offset;
-            int16_t mm_struct_env_end_offset;
-        
-             
-         };
-         char _cap[STRUCT_OFFSETS_LEN];
-     };
- } struct_offsets_t;
- _Static_assert(sizeof(struct_offsets_t) == STRUCT_OFFSETS_LEN, "sizeof struct_offsets_t mismatch");
- 
- #endif
- 
+
  #ifndef __ASSEMBLY__
  
  // TODO: remove
@@ -345,7 +254,6 @@
      uint8_t root_superkey[ROOT_SUPER_KEY_HASH_LEN];
      uint8_t __[SETUP_PRESERVE_LEN];
      patch_config_t patch_config;
-     struct_offsets_t struct_offsets;
      char additional[ADDITIONAL_LEN];
  } setup_preset_t;
  #else
@@ -371,8 +279,7 @@
   *   offset 216-247: root_superkey (uint8_t[ROOT_SUPER_KEY_HASH_LEN], 32 bytes)
   *   offset 248-311: __ (uint8_t[SETUP_PRESERVE_LEN], 64 bytes)
  *   offset 312-823: patch_config (patch_config_t, PATCH_CONFIG_LEN = 512 bytes)
- *   offset 824-959: struct_offsets (struct_offsets_t, STRUCT_OFFSETS_LEN)
-
+ *   offset 824-1335: additional (uint8_t[ADDITIONAL_LEN], ADDITIONAL_LEN = 512 bytes)
   */
  #define setup_kernel_version_offset 0
  #define setup_kimg_size_offset (setup_kernel_version_offset + 8)          /* offset: 8 */
@@ -392,8 +299,7 @@
  #define setup_superkey_offset (setup_header_backup_offset + HDR_BACKUP_SIZE) /* offset: 152 */
  #define setup_root_superkey_offset (setup_superkey_offset + SUPER_KEY_LEN) /* offset: 216 */
  #define setup_patch_config_offset (setup_root_superkey_offset + ROOT_SUPER_KEY_HASH_LEN + SETUP_PRESERVE_LEN) /* offset: 312 */
- #define setup_struct_offsets_offset (setup_patch_config_offset + PATCH_CONFIG_LEN) /* offset: 824 */
-#define setup_additional_offset (setup_struct_offsets_offset + STRUCT_OFFSETS_LEN) 
+#define setup_additional_offset (setup_patch_config_offset + PATCH_CONFIG_LEN) /* offset: 824 */
 #define setup_end (setup_additional_offset + ADDITIONAL_LEN)            
  #endif
  

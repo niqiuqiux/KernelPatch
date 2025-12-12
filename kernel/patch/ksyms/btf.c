@@ -42,7 +42,7 @@
      *btf_data = (const char *)start_addr;
      *btf_size = (uint32_t)(stop_addr - start_addr);
  
-    log_boot("found BTF in kernel vaddr: start=0x%lx, stop=0x%lx, size=0x%x\n", 
+    logki("found BTF in kernel vaddr: start=0x%lx, stop=0x%lx, size=0x%x\n", 
           start_addr, stop_addr, *btf_size);
  
      return 0;
@@ -80,7 +80,7 @@
          return -1;
      }
  
-     log_boot("parsed BTF successfully\n");
+     logki("parsed BTF successfully\n");
      return 0;
  }
   
@@ -120,7 +120,7 @@
           return -1;
       }
   
-      log_boot("BTF header: magic=0x%04x, version=%d, type_len=%u, str_len=%u\n", 
+      logki("BTF header: magic=0x%04x, version=%d, type_len=%u, str_len=%u\n", 
                  magic, version, type_len, str_len);
   
       return 0;
@@ -145,7 +145,7 @@
       uint32_t type_count = 0;
       uint32_t offset = 0;
   
-      log_boot("parsing BTF types: hdr_len=%u, type_off=%u, type_len=%u\n", hdr_len, type_off, type_len);
+      logki("parsing BTF types: hdr_len=%u, type_off=%u, type_len=%u\n", hdr_len, type_off, type_len);
   
      /* 第一遍：计算类型数量 */
      while (offset < type_len) {
@@ -154,7 +154,7 @@
              /* 如果剩余字节不足以读取完整结构，说明类型表已结束 */
              /* 这可能是正常的，因为类型表可能不是完全对齐的 */
              if (type_len - offset > 0) {
-                 log_boot("type table ends with %u trailing bytes at offset %u\n", type_len - offset, offset);
+                 logki("type table ends with %u trailing bytes at offset %u\n", type_len - offset, offset);
              }
              break;
          }
@@ -170,7 +170,7 @@
           /* 调试：打印前几个类型的信息 */
           if (type_count < 5) {
               uint32_t name_off = t->name_off;
-              log_boot("type[%u]: kind=%u, vlen=%u, name_off=%u, offset=%u\n", 
+              logki("type[%u]: kind=%u, vlen=%u, name_off=%u, offset=%u\n", 
                          type_count, kind, vlen, name_off, offset);
           }
   
@@ -396,7 +396,7 @@
           *nr_types = type_count;
       }
       
-      log_boot("parsed %u BTF types (validated %u types in second pass)\n", *nr_types, type_count);
+      logki("parsed %u BTF types (validated %u types in second pass)\n", *nr_types, type_count);
       return 0;
   }
   

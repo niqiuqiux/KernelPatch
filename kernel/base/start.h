@@ -25,7 +25,6 @@
      uint8_t superkey[SUPER_KEY_LEN];
      uint8_t root_superkey[ROOT_SUPER_KEY_HASH_LEN];
      patch_config_t patch_config;
-     struct_offsets_t struct_offsets;
  } start_preset_t;
  #else
  /* Assembly offsets for start_preset_t structure
@@ -45,7 +44,6 @@
   *   offset 2688-2751: superkey (uint8_t[SUPER_KEY_LEN], 64 bytes)
   *   offset 2752-2783: root_superkey (uint8_t[ROOT_SUPER_KEY_HASH_LEN], 32 bytes)
  *   offset 2784-3295: patch_config (patch_config_t, PATCH_CONFIG_LEN = 512 bytes)
- *   offset 3296-3431: struct_offsets (struct_offsets_t, STRUCT_OFFSETS_LEN)
   */
  #define start_header_offset 0
  #define start_kernel_version_offset (start_header_offset + KP_HEADER_SIZE)                    /* offset: 64 */
@@ -60,8 +58,7 @@
  #define start_superkey_offset (start_map_backup_offset + MAP_MAX_SIZE)                        /* offset: 2688 */
  #define start_root_superkey_offset (start_superkey_offset + SUPER_KEY_LEN)                    /* offset: 2752 */
  #define start_patch_config_offset (start_root_superkey_offset + ROOT_SUPER_KEY_HASH_LEN)      /* offset: 2784 */
- #define start_struct_offsets_offset (start_patch_config_offset + PATCH_CONFIG_LEN)            /* offset: 3296 */
- #define start_end (start_struct_offsets_offset + STRUCT_OFFSETS_LEN)                          
+#define start_end (start_patch_config_offset + PATCH_CONFIG_LEN)                          
  #endif
  
  #endif // _KP_START_H_
